@@ -12,6 +12,8 @@ use App\Traits\LogsModelActivity;
 
 class User extends Authenticatable
 {
+
+
     use HasApiTokens, HasFactory, HasRoles, LogsModelActivity, Notifiable;
 
     protected $fillable = [

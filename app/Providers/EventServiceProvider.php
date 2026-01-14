@@ -10,6 +10,15 @@ class EventServiceProvider extends ServiceProvider
     \App\Modules\Auth\Events\UserLocked::class => [
       \App\Modules\Auth\Listeners\SendUserLockedNotifications::class,
     ],
+    \App\Modules\Auth\Events\UserUnlocked::class => [
+      \App\Modules\Auth\Listeners\SendUserUnlockedNotification::class,
+    ],
+    \App\Modules\Product\Events\ProductStockLow::class => [
+      \App\Modules\Product\Listeners\SendStockAlertNotification::class,
+    ],
+    \App\Modules\Product\Events\ProductOutOfStock::class => [
+      \App\Modules\Product\Listeners\SendStockAlertNotification::class,
+    ],
   ];
 
   public function boot(): void

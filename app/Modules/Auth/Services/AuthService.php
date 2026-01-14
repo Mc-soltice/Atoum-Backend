@@ -1,9 +1,11 @@
 <?php
 namespace App\Modules\Auth\Services;
 
-use App\Modules\Auth\Repositories\AuthRepository;
-use Illuminate\Support\Facades\Hash;
+
 use App\Modules\Auth\Models\User;
+use Illuminate\Support\Facades\Hash;
+use App\Modules\Auth\Events\UserUnlocked;
+use App\Modules\Auth\Repositories\AuthRepository;
 
 class AuthService
 {
@@ -101,12 +103,14 @@ class AuthService
             return null;
         }
 
+        $wasLocked = $user->is_locked;
         $newStatus = !$user->is_locked;
+
         $updatedUser = $this->repository->update($user, [
             'is_locked' => $newStatus
         ]);
 
-        // 🔥 Loguer l'événement
+        // 🔥 Activity log
         activity('user_management')
             ->causedBy(auth()->user())
             ->performedOn($user)
@@ -117,6 +121,12 @@ class AuthService
             ])
             ->log($newStatus ? 'Utilisateur bloqué' : 'Utilisateur débloqué');
 
+        // ✅ EVENT UNIQUEMENT SI DÉBLOCAGE
+        if ($wasLocked && !$newStatus) {
+            event(new UserUnlocked($updatedUser));
+        }
+
         return $updatedUser;
     }
+
 }
