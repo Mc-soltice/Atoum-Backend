@@ -9,6 +9,12 @@ use App\Modules\Product\Resources\CategoryResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * @OA\Tag(
+ *     name="Categories",
+ *     description="Endpoints pour la gestion des catégories"
+ * )
+ */
 class CategoryController extends Controller
 {
   public function __construct(
@@ -16,6 +22,28 @@ class CategoryController extends Controller
   ) {
   }
 
+  /**
+   * @OA\Get(
+   *     path="/api/users/categories",
+   *     tags={"Categories"},
+   *     summary="Lister toutes les catégories",
+   *     security={{"sanctum": {}}},
+   *     @OA\Parameter(
+   *         name="per_page",
+   *         in="query",
+   *         description="Nombre d'éléments par page",
+   *         @OA\Schema(type="integer", default=15)
+   *     ),
+   *     @OA\Response(
+   *         response=200,
+   *         description="Liste paginée des catégories",
+   *         @OA\JsonContent(
+   *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Category")),
+   *             @OA\Property(property="meta", type="object")
+   *         )
+   *     )
+   * )
+   */
   public function index(Request $request): JsonResponse
   {
     $perPage = $request->get('per_page', 15);
@@ -32,6 +60,23 @@ class CategoryController extends Controller
     ]);
   }
 
+  /**
+   * @OA\Get(
+   *     path="/api/users/categories/{id}",
+   *     tags={"Categories"},
+   *     summary="Afficher une catégorie",
+   *     security={{"sanctum": {}}},
+   *     @OA\Parameter(
+   *         name="id",
+   *         in="path",
+   *         required=true,
+   *         description="ID de la catégorie",
+   *         @OA\Schema(type="integer")
+   *     ),
+   *     @OA\Response(response=200, description="Détails de la catégorie"),
+   *     @OA\Response(response=404, description="Catégorie non trouvée")
+   * )
+   */
   public function show(int $id): JsonResponse
   {
     $category = $this->categoryService->getCategoryWithProducts($id);
@@ -45,6 +90,24 @@ class CategoryController extends Controller
     return response()->json(new CategoryResource($category));
   }
 
+  /**
+   * @OA\Post(
+   *     path="/api/users/categories",
+   *     tags={"Categories"},
+   *     summary="Créer une catégorie",
+   *     security={{"sanctum": {}}},
+   *     @OA\RequestBody(
+   *         required=true,
+   *         @OA\JsonContent(
+   *             required={"name", "description"},
+   *             @OA\Property(property="name", type="string", example="Électronique"),
+   *             @OA\Property(property="description", type="string", example="Produits électroniques")
+   *         )
+   *     ),
+   *     @OA\Response(response=201, description="Catégorie créée"),
+   *     @OA\Response(response=422, description="Erreur de validation")
+   * )
+   */
   public function store(StoreCategoryRequest $request): JsonResponse
   {
     $category = $this->categoryService->createCategory($request->validated());
@@ -52,6 +115,28 @@ class CategoryController extends Controller
     return response()->json(new CategoryResource($category), 201);
   }
 
+  /**
+   * @OA\Put(
+   *     path="/api/users/categories/{id}",
+   *     tags={"Categories"},
+   *     summary="Mettre à jour une catégorie",
+   *     security={{"sanctum": {}}},
+   *     @OA\Parameter(
+   *         name="id",
+   *         in="path",
+   *         required=true,
+   *         @OA\Schema(type="integer")
+   *     ),
+   *     @OA\RequestBody(
+   *         @OA\JsonContent(
+   *             @OA\Property(property="name", type="string"),
+   *             @OA\Property(property="description", type="string")
+   *         )
+   *     ),
+   *     @OA\Response(response=200, description="Catégorie mise à jour"),
+   *     @OA\Response(response=404, description="Catégorie non trouvée")
+   * )
+   */
   public function update(StoreCategoryRequest $request, int $id): JsonResponse
   {
     $category = $this->categoryService->getCategoryById($id);
@@ -73,6 +158,22 @@ class CategoryController extends Controller
     ], 500);
   }
 
+  /**
+   * @OA\Delete(
+   *     path="/api/users/categories/{id}",
+   *     tags={"Categories"},
+   *     summary="Supprimer une catégorie",
+   *     security={{"sanctum": {}}},
+   *     @OA\Parameter(
+   *         name="id",
+   *         in="path",
+   *         required=true,
+   *         @OA\Schema(type="integer")
+   *     ),
+   *     @OA\Response(response=204, description="Catégorie supprimée"),
+   *     @OA\Response(response=404, description="Catégorie non trouvée")
+   * )
+   */
   public function destroy(int $id): JsonResponse
   {
     $deleted = $this->categoryService->deleteCategory($id);
@@ -86,6 +187,22 @@ class CategoryController extends Controller
     ], 404);
   }
 
+  /**
+   * @OA\Post(
+   *     path="/api/users/categories/{id}/restore",
+   *     tags={"Categories"},
+   *     summary="Restaurer une catégorie supprimée",
+   *     security={{"sanctum": {}}},
+   *     @OA\Parameter(
+   *         name="id",
+   *         in="path",
+   *         required=true,
+   *         @OA\Schema(type="integer")
+   *     ),
+   *     @OA\Response(response=200, description="Catégorie restaurée"),
+   *     @OA\Response(response=404, description="Catégorie non trouvée")
+   * )
+   */
   public function restore(int $id): JsonResponse
   {
     $restored = $this->categoryService->restoreCategory($id);

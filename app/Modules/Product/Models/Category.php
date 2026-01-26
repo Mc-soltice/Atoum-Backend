@@ -7,7 +7,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $description
+ * @property \Illuminate\Database\Eloquent\Collection $products
+ */
 class Category extends Model
 {
   use HasFactory, SoftDeletes;

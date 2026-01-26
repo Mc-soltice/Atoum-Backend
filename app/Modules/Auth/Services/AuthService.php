@@ -4,6 +4,7 @@ namespace App\Modules\Auth\Services;
 
 use App\Modules\Auth\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use App\Modules\Auth\Events\UserUnlocked;
 use App\Modules\Auth\Repositories\AuthRepository;
 
@@ -22,9 +23,9 @@ class AuthService
 
         $user = $this->repository->create($data);
 
-        if (isset($data['role'])) {
-            $user->assignRole($data['role']);
-        }
+        // Assigner un rôle par défaut si aucun n'est fourni
+        $role = $data['role'] ?? 'client';
+        $user->assignRole($role);
 
         return $user->load('roles', 'permissions');
     }
@@ -42,6 +43,8 @@ class AuthService
             return null;
         }
 
+         $user->load('roles', 'permissions');
+
         /***** reset les tentatives en cas de succès */
         $user->loginAttempt()->updateOrCreate([], [
             'attempts' => 0,
@@ -50,10 +53,11 @@ class AuthService
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return [
-            'user' => $user,
-            'token' => $token,
-        ];
+return [
+    'user' => $user->load('roles', 'permissions'),
+    'token' => $token,
+];
+
     }
 
     public function logout(User $user): void
@@ -112,7 +116,7 @@ class AuthService
 
         // 🔥 Activity log
         activity('user_management')
-            ->causedBy(auth()->user())
+            ->causedBy(Auth::user())
             ->performedOn($user)
             ->withProperties([
                 'user_id' => $user->id,

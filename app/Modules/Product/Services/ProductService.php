@@ -2,14 +2,18 @@
 
 namespace App\Modules\Product\Services;
 
+use Illuminate\Support\Str;
 use App\Modules\Product\Repositories\ProductRepository;
 use App\Modules\Product\Models\Product;
+use App\Modules\Product\Models\ProductImage;
 use App\Modules\Product\Events\ProductStockLow;
 use App\Modules\Product\Events\ProductOutOfStock;
+use App\Modules\Product\Requests\StoreProductRequest;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class ProductService
 {
@@ -24,11 +28,6 @@ class ProductService
   public function getAllProducts(): Collection
   {
     return $this->productRepository->getAll();
-  }
-
-  public function getPaginatedProducts(int $perPage = 15): LengthAwarePaginator
-  {
-    return $this->productRepository->getPaginated($perPage);
   }
 
   public function getProductById(string $id): ?Product
@@ -46,11 +45,6 @@ class ProductService
     return $this->productRepository->getPromotionalProducts();
   }
 
-  public function searchProducts(string $searchTerm): Collection
-  {
-    return $this->productRepository->search($searchTerm);
-  }
-
   public function getLowStockProducts(): Collection
   {
     return $this->productRepository->getLowStockProducts($this->lowStockThreshold);
@@ -61,92 +55,164 @@ class ProductService
     return $this->productRepository->getOutOfStockProducts();
   }
 
-  public function createProduct(array $data): Product
-  {
-    try {
-      $product = $this->productRepository->create($data);
 
-      // Vérifier le stock après création
-      $this->checkStockAndDispatchEvents($product);
+public function store(StoreProductRequest $request): Product
+{
+    return DB::transaction(function () use ($request) {
 
-      return $product;
-    } catch (\Exception $e) {
-      Log::error('Erreur lors de la création du produit', [
-        'error' => $e->getMessage(),
-        'data' => $data
-      ]);
-      throw $e;
-    }
-  }
+        // 1️⃣ Données métier (sans fichiers)
+        $data = $request->except(['main_image', 'images']);
 
-  public function updateProduct(string $id, array $data): bool
-  {
+        // 2️⃣ Création du produit en base
+        $product = $this->productRepository->create($data);
+
+        // 3️⃣ Construction du dossier de stockage (slug + id court)
+        $slug = Str::slug($product->name);
+        $basePath = "products/{$slug}-{$product->idShort}";
+
+        // 4️⃣ Image principale
+        if ($request->hasFile('main_image')) {
+            $mainPath = $request->file('main_image')
+                ->store($basePath, 'public');
+
+            $this->productRepository->update($product, [
+                'main_image' => $mainPath,
+            ]);
+        }
+
+        // 5️⃣ Galerie d’images
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store(
+                    "{$basePath}/gallery",
+                    'public'
+                );
+
+                $this->productRepository
+                    ->addGalleryImage($product, $path);
+            }
+        }
+
+        // 6️⃣ Retour du produit avec ses relations
+        return $this->productRepository
+            ->findWithRelations($product->id);
+    });
+}
+
+
+
+public function updateProduct(string $id, array $data): bool
+{
     $product = $this->productRepository->findById($id);
 
     if (!$product) {
-      return false;
+        return false;
     }
 
+    DB::beginTransaction();
+    
     try {
-      $oldStock = $product->stock;
-      $result = $this->productRepository->update($product, $data);
+        $oldStock = $product->stock;
+        
+        // Extraire les données d'images
+        $imageData = $this->extractImageData($data);
+        $regularData = array_diff_key($data, [
+            'main_image' => null,
+            'images' => null,
+            'existing_gallery' => null
+        ]);
 
-      // Vérifier le stock après mise à jour
-      if ($result && $oldStock != $data['stock'] ?? $product->stock) {
-        $this->checkStockAndDispatchEvents($product->fresh());
-      }
+        // Mettre à jour les données régulières
+        if (!empty($regularData)) {
+            $result = $this->productRepository->update($product, $regularData);
+            if (!$result) {
+                DB::rollBack();
+                return false;
+            }
+        }
 
-      return $result;
+        // Gérer les images
+        if (!empty($imageData)) {
+            $this->handleProductImages($product, $imageData);
+        }
+
+        // Vérifier le stock après mise à jour
+        $product->refresh();
+        if ($oldStock != $product->stock) {
+            $this->checkStockAndDispatchEvents($product);
+        }
+
+        DB::commit();
+        return true;
+        
     } catch (\Exception $e) {
-      Log::error('Erreur lors de la mise à jour du produit', [
-        'error' => $e->getMessage(),
-        'product_id' => $id,
-        'data' => $data
-      ]);
-      throw $e;
+        DB::rollBack();
+        Log::error('Erreur lors de la mise à jour du produit', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'product_id' => $id,
+            'data' => $data
+        ]);
+        throw $e;
     }
-  }
+}
 
-  public function updateStock(string $id, int $stock): bool
-  {
-    $product = $this->productRepository->findById($id);
-
-    if (!$product) {
-      return false;
+private function extractImageData(array $data): array
+{
+    $imageData = [];
+    
+    if (isset($data['main_image'])) {
+        $imageData['main_image'] = $data['main_image'];
     }
-
-    $oldStock = $product->stock;
-    $result = $this->productRepository->updateStock($id, $stock);
-
-    if ($result && $oldStock != $stock) {
-      $this->checkStockAndDispatchEvents($product->fresh());
+    
+    if (isset($data['images'])) {
+        $imageData['images'] = $data['images'];
     }
-
-    return $result;
-  }
-
-  public function incrementStock(string $id, int $quantity): bool
-  {
-    return $this->productRepository->incrementStock($id, $quantity);
-  }
-
-  public function decrementStock(string $id, int $quantity): bool
-  {
-    $product = $this->productRepository->findById($id);
-
-    if (!$product || $product->stock < $quantity) {
-      return false;
+    
+    if (isset($data['existing_gallery'])) {
+        $imageData['existing_gallery'] = $data['existing_gallery'];
     }
+    
+    return $imageData;
+}
 
-    $result = $this->productRepository->decrementStock($id, $quantity);
-
-    if ($result) {
-      $updatedProduct = $product->fresh();
-      $this->checkStockAndDispatchEvents($updatedProduct);
+private function handleProductImages(Product $product, array $imageData): void
+{
+    // Gérer l'image principale
+    if (isset($imageData['main_image']) && $imageData['main_image'] instanceof \Illuminate\Http\UploadedFile) {
+        // Supprimer l'ancienne image
+        if ($product->main_image) {
+            Storage::delete($product->main_image);
+        }
+        
+        // Stocker la nouvelle image
+        $path = $imageData['main_image']->store('products', 'public');
+        $product->update(['main_image' => $path]);
     }
 
-    return $result;
-  }
+    // Gérer la galerie
+    $existingGallery = $imageData['existing_gallery'] ?? [];
+    
+    // Supprimer les images retirées
+    $currentGalleryImages = $product->images()->pluck('image_path')->toArray();
+    $imagesToDelete = array_diff($currentGalleryImages, $existingGallery);
+    
+    foreach ($imagesToDelete as $imagePath) {
+        Storage::delete($imagePath);
+        $product->images()->where('image_path', $imagePath)->delete();
+    }
+
+    // Ajouter de nouvelles images
+    if (isset($imageData['images']) && is_array($imageData['images'])) {
+        foreach ($imageData['images'] as $image) {
+            if ($image instanceof \Illuminate\Http\UploadedFile) {
+                $path = $image->store('products/gallery', 'public');
+                $product->images()->create(['image_path' => $path]);
+            }
+        }
+    }
+}
+
 
   public function applyPromotion(string $id, float $discountPrice, ?\DateTime $endDate = null): bool
   {
@@ -188,19 +254,6 @@ class ProductService
     }
   }
 
-  public function restoreProduct(string $id): bool
-  {
-    try {
-      return $this->productRepository->restore($id);
-    } catch (\Exception $e) {
-      Log::error('Erreur lors de la restauration du produit', [
-        'error' => $e->getMessage(),
-        'product_id' => $id
-      ]);
-      throw $e;
-    }
-  }
-
   private function checkStockAndDispatchEvents(Product $product): void
   {
     if ($product->isStockLow()) {
@@ -210,5 +263,11 @@ class ProductService
     if ($product->isOutOfStock()) {
       Event::dispatch(new ProductOutOfStock($product));
     }
+  }
+
+  public function deleteImage(ProductImage $image): void
+  {
+      Storage::delete($image->path);
+      $image->delete();
   }
 }

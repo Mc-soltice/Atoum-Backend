@@ -10,11 +10,28 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use App\Traits\LogsModelActivity;
 
+/**
+ * @property int $id
+ * @property string $first_name
+ * @property string $last_name
+ * @property string $email
+ * @property string $phone
+ * @property bool $is_locked
+ * @property \Illuminate\Database\Eloquent\Collection $activities
+ */
 class User extends Authenticatable
 {
-
-
     use HasApiTokens, HasFactory, HasRoles, LogsModelActivity, Notifiable;
+
+    /**
+     * @property int $id
+     * @property string $first_name
+     * @property string $last_name
+     * @property string $email
+     * @property string $phone
+     * @property bool $is_locked
+     * @property \Illuminate\Database\Eloquent\Collection $activities
+     */
 
     protected $fillable = [
         'first_name',

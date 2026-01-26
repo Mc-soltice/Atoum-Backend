@@ -8,6 +8,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class UserResource extends JsonResource
 {
     /**
+     * Crée une nouvelle instance de ressource.
+     *
+     * @param mixed $resource
+     * @return void
+     */
+    public function __construct($resource = null)
+    {
+        parent::__construct($resource);
+    }
+
+    /**
      * Transforme la ressource en tableau pour la réponse API.
      *
      * @param Request $request

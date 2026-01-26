@@ -23,10 +23,10 @@ class AuthRepository
    * @param string $email
    * @return User|null
    */
-  public function findByEmail(string $email): ?User
-  {
-    return User::where('email', $email)->first();
-  }
+public function findByEmail(string $email): ?User
+{
+    return User::with('roles', 'permissions')->where('email', $email)->first();
+}
 
   /**
    * Met à jour un utilisateur avec de nouvelles données.

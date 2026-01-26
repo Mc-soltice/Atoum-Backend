@@ -3,9 +3,12 @@
 namespace App\Modules\Product\Repositories;
 
 use App\Modules\Product\Models\Product;
-use Illuminate\Pagination\LengthAwarePaginator;
+
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Modules\Product\Models\ProductImage;
+
 
 class ProductRepository
 {
@@ -17,11 +20,6 @@ class ProductRepository
   public function getAll(): Collection
   {
     return $this->product->with('category')->get();
-  }
-
-  public function getPaginated(int $perPage = 15): LengthAwarePaginator
-  {
-    return $this->product->with('category')->paginate($perPage);
   }
 
   public function findById(string $id): ?Product
@@ -70,15 +68,57 @@ class ProductRepository
       ->get();
   }
 
-  public function create(array $data): Product
-  {
-    return $this->product->create($data);
-  }
+    public function create(array $data): Product
+    {
+        return Product::query()->create($data);
+    }
 
-  public function update(Product $product, array $data): bool
-  {
-    return $product->update($data);
-  }
+public function update(Product $product, array $data): bool
+{
+    try {
+        // Convertir les tableaux en JSON si nécessaire
+        foreach (['ingredients', 'benefits'] as $field) {
+            if (isset($data[$field]) && is_array($data[$field])) {
+                $data[$field] = json_encode(array_values($data[$field]));
+            }
+        }
+
+        // Gérer la date de fin de promo
+        if (isset($data['promo_end_date']) && !empty($data['promo_end_date'])) {
+            $data['promo_end_date'] = \Carbon\Carbon::parse($data['promo_end_date']);
+        }
+
+        // Gérer original_price si is_promotional est false
+        if (isset($data['is_promotional']) && !$data['is_promotional']) {
+            $data['original_price'] = null;
+            $data['promo_end_date'] = null;
+        }
+
+        return $product->update($data);
+    } catch (\Exception $e) {
+        Log::error('Repository update error', [
+            'product_id' => $product->id,
+            'error' => $e->getMessage(),
+            'data' => $data
+        ]);
+        throw $e;
+    }
+}
+    public function addGalleryImage(Product $product, string $path): void
+    {
+        ProductImage::query()->create([
+            'product_id' => $product->id,
+            'path' => $path,
+        ]);
+    }
+
+    public function findWithRelations(string $id): Product
+    {
+        return Product::query()
+            ->with(['images', 'category'])
+            ->findOrFail($id);
+    }
+
 
   public function updateStock(string $id, int $quantity): bool
   {
@@ -163,4 +203,6 @@ class ProductRepository
 
     return false;
   }
+
+  
 }

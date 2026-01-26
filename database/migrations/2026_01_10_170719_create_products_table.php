@@ -10,29 +10,38 @@ return new class extends Migration {
         Schema::create('products', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('name');
-            $table->foreignId('category_id')->constrained()->onDelete('restrict');
+            $table->foreignId('category_id')->constrained()->restrictOnDelete();
             $table->decimal('price', 10, 2);
             $table->decimal('original_price', 10, 2)->nullable();
-            $table->string('image')->nullable();
+            $table->string('main_image')->nullable();
             $table->text('description')->nullable();
             $table->json('ingredients')->nullable();
+            $table->json('usage')->nullable();
             $table->json('benefits')->nullable();
-            $table->text('usage')->nullable();
             $table->integer('stock')->default(0);
             $table->boolean('is_promotional')->default(false);
             $table->timestamp('promo_end_date')->nullable();
+            $table->timestamps();
             $table->softDeletes();
+        });
+
+            
+        Schema::create('product_images', function (Blueprint $table) {
+            $table->id();
+            $table->uuid('product_id');
+            $table->string('path');
             $table->timestamps();
 
-            $table->index('category_id');
-            $table->index('is_promotional');
-            $table->index('promo_end_date');
-            $table->index('stock');
+            $table->foreign('product_id')
+                ->references('id')
+                ->on('products')
+                ->cascadeOnDelete();
         });
-    }
+}
 
     public function down(): void
     {
+        Schema::dropIfExists('product_images');
         Schema::dropIfExists('products');
     }
 };
