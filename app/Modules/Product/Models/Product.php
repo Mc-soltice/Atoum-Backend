@@ -31,7 +31,7 @@ class Product extends Model
         'description',
         'ingredients',
         'benefits',
-        'usage',
+        'usage_instructions',
         'stock',
         'is_promotional',
         'promo_end_date',
@@ -64,6 +64,16 @@ class Product extends Model
 {
     return substr($this->id, 0, 5);
 }
+public function isStockLow(): bool
+{
+    return $this->stock > 0 && $this->stock <= config('product.stock_low_threshold', 10);
+}
+
+public function isOutOfStock(): bool
+{
+    return $this->stock <= 0;
+}
+
 
 }
 

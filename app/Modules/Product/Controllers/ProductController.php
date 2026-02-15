@@ -124,7 +124,7 @@ class ProductController extends Controller
 
 
   /**
-   * @OA\Put(
+   * @OA\Patch(
    *     path="/api/users/products/{id}",
    *     tags={"Products"},
    *     summary="Mettre à jour un produit",
@@ -140,39 +140,30 @@ class ProductController extends Controller
    */
 public function update(StoreProductRequest $request, string $id): JsonResponse
 {
-  if ($request->all() === [] && $request->files->all() === []) {
-    return response()->json([
-        'message' => 'Aucune donnée fournie pour la mise à jour'
-    ], 422);
-}
-
     $product = $this->productService->getProductById($id);
 
     if (!$product) {
-        return response()->json([
-            'message' => 'Produit non trouvé'
-        ], 404);
+        return response()->json(['message' => 'Produit non trouvé'], 404);
     }
 
-    // Ajouter un log pour déboguer
-    log::info('Update product request data:', [
-        'product_id' => $id,
-        'data' => $request->all(),
-        'files' => $request->file() ? array_keys($request->file()) : []
-    ]);
+    $data = array_merge(
+        $request->validated(),
+        $request->only(['main_image', 'images'])
+    );
 
-    $updated = $this->productService->updateProduct($id, $request->validated());
+    $updated = $this->productService->updateProduct($id, $data);
 
-    if ($updated) {
-        // Récupérer le produit fraîchement mis à jour avec ses relations
-        $updatedProduct = $this->productService->getProductById($id);
-        return response()->json(new ProductResource($updatedProduct));
+    if (!$updated) {
+        return response()->json(['message' => 'Erreur lors de la mise à jour'], 500);
     }
 
-    return response()->json([
-        'message' => 'Erreur lors de la mise à jour'
-    ], 500);
+    return response()->json(
+        new ProductResource(
+            $this->productService->getProductById($id)
+        )
+    );
 }
+
 
 
   /**
@@ -319,11 +310,12 @@ public function update(StoreProductRequest $request, string $id): JsonResponse
      *   tags={"Products"}
      * )
      */
-     public function deleteImage(DeleteProductImageRequest $request)
-    {
-        $image = ProductImage::findOrFail($request->image_id);
-        app(ProductService::class)->deleteImage($image);
+public function deleteImage(DeleteProductImageRequest $request): JsonResponse
+{
+    $image = ProductImage::findOrFail($request->image_id);
+    $this->productService->deleteImage($image);
 
-        return response()->json(['message' => 'Image supprimée']);
-    }
+    return response()->json(['message' => 'Image supprimée']);
+}
+
 }

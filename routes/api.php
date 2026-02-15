@@ -4,9 +4,12 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Middleware\CheckUserLock;
 use App\Modules\Auth\Controllers\AuthController;
 use App\Modules\Product\Controllers\CategoryController;
+use App\Modules\Delivery\Controllers\DeliveryOptionController;
 use App\Modules\Product\Controllers\ProductController;
 use App\Http\Controllers\SwaggerTestController;
 use Illuminate\Http\Request;
+use App\Modules\Order\Controllers\OrderController;
+
 
 /***** Route publique de register le login */
 Route::post('/register', [AuthController::class, 'register']);
@@ -56,5 +59,44 @@ Route::get('/test', [SwaggerTestController::class, 'test']);
     Route::delete('/{id}', [ProductController::class, 'destroy']);
     Route::post('/{id}/restore', [ProductController::class, 'restore']);
   });
+Route::prefix('orders')->name('orders.')->group(function () {
 
-// });
+        // CRUD
+        Route::get('/', [OrderController::class, 'index'])
+            ->name('index');
+
+        Route::post('/', [OrderController::class, 'store'])
+            ->name('store');
+
+        Route::get('/{id}', [OrderController::class, 'show'])
+            ->name('show');
+
+        Route::delete('/{id}', [OrderController::class, 'destroy'])
+            ->name('destroy');
+
+        // Actions métier
+        Route::patch('/{id}/status', [OrderController::class, 'updateStatus'])
+            ->name('status.update');
+
+        Route::post('/{id}/cancel', [OrderController::class, 'cancel'])
+            ->name('cancel');
+    });
+
+
+Route::prefix('delivery-options')->group(function () {
+    Route::get('/available', [DeliveryOptionController::class, 'available']);
+    
+    Route::get('/{id}', [DeliveryOptionController::class, 'show']);
+
+    Route::get('/', [DeliveryOptionController::class, 'index']);
+    
+    Route::post('/', [DeliveryOptionController::class, 'store']);
+    
+    Route::put('/{delivery_option}', [DeliveryOptionController::class, 'update']);
+    
+    Route::delete('/{delivery_option}', [DeliveryOptionController::class, 'destroy']);
+    
+    Route::patch('/{delivery_option}/toggle', [DeliveryOptionController::class, 'toggle']);
+    
+    Route::patch('/reorder', [DeliveryOptionController::class, 'reorder']);
+});

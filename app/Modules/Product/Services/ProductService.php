@@ -25,6 +25,15 @@ class ProductService
     $this->lowStockThreshold = config('product.stock_low_threshold', 10);
   }
 
+  private function productBasePath(Product $product): string
+{
+    $slug = Str::slug($product->name);
+    $shortUuid = substr($product->id, 0, 5);
+
+    return "products/{$slug}-{$shortUuid}";
+}
+
+
   public function getAllProducts(): Collection
   {
     return $this->productRepository->getAll();
@@ -60,27 +69,26 @@ public function store(StoreProductRequest $request): Product
 {
     return DB::transaction(function () use ($request) {
 
-        // 1️⃣ Données métier (sans fichiers)
-        $data = $request->except(['main_image', 'images']);
+        // 1️⃣ Création produit (sans fichiers)
+        $product = $this->productRepository->create(
+            $request->except(['main_image', 'images'])
+        );
 
-        // 2️⃣ Création du produit en base
-        $product = $this->productRepository->create($data);
+        $basePath = $this->productBasePath($product);
 
-        // 3️⃣ Construction du dossier de stockage (slug + id court)
-        $slug = Str::slug($product->name);
-        $basePath = "products/{$slug}-{$product->idShort}";
-
-        // 4️⃣ Image principale
+        // 2️⃣ Image principale
         if ($request->hasFile('main_image')) {
-            $mainPath = $request->file('main_image')
-                ->store($basePath, 'public');
+            $mainPath = $request->file('main_image')->store(
+                "{$basePath}/main",
+                'public'
+            );
 
             $this->productRepository->update($product, [
                 'main_image' => $mainPath,
             ]);
         }
 
-        // 5️⃣ Galerie d’images
+        // 3️⃣ Galerie
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store(
@@ -93,11 +101,11 @@ public function store(StoreProductRequest $request): Product
             }
         }
 
-        // 6️⃣ Retour du produit avec ses relations
         return $this->productRepository
             ->findWithRelations($product->id);
     });
 }
+
 
 
 
@@ -178,41 +186,54 @@ private function extractImageData(array $data): array
 
 private function handleProductImages(Product $product, array $imageData): void
 {
-    // Gérer l'image principale
-    if (isset($imageData['main_image']) && $imageData['main_image'] instanceof \Illuminate\Http\UploadedFile) {
-        // Supprimer l'ancienne image
+    $basePath = $this->productBasePath($product);
+
+    /** -----------------
+     * IMAGE PRINCIPALE
+     * ----------------- */
+    if (!empty($imageData['main_image'])) {
+
         if ($product->main_image) {
-            Storage::delete($product->main_image);
+            Storage::disk('public')->delete($product->main_image);
         }
-        
-        // Stocker la nouvelle image
-        $path = $imageData['main_image']->store('products', 'public');
+
+        $path = $imageData['main_image']->store(
+            "{$basePath}/main",
+            'public'
+        );
+
         $product->update(['main_image' => $path]);
     }
 
-    // Gérer la galerie
-    $existingGallery = $imageData['existing_gallery'] ?? [];
-    
-    // Supprimer les images retirées
-    $currentGalleryImages = $product->images()->pluck('image_path')->toArray();
-    $imagesToDelete = array_diff($currentGalleryImages, $existingGallery);
-    
-    foreach ($imagesToDelete as $imagePath) {
-        Storage::delete($imagePath);
-        $product->images()->where('image_path', $imagePath)->delete();
-    }
+    /** -----------------
+     * GALERIE – SUPPRESSION
+     * ----------------- */
+    $existing = $imageData['existing_gallery'] ?? [];
 
-    // Ajouter de nouvelles images
-    if (isset($imageData['images']) && is_array($imageData['images'])) {
+    $product->images()
+        ->whereNotIn('path', $existing)
+        ->get()
+        ->each(function ($img) {
+            Storage::disk('public')->delete($img->path);
+            $img->delete();
+        });
+
+    /** -----------------
+     * GALERIE – AJOUT
+     * ----------------- */
+    if (!empty($imageData['images'])) {
         foreach ($imageData['images'] as $image) {
-            if ($image instanceof \Illuminate\Http\UploadedFile) {
-                $path = $image->store('products/gallery', 'public');
-                $product->images()->create(['image_path' => $path]);
-            }
+            $path = $image->store(
+                "{$basePath}/gallery",
+                'public'
+            );
+
+            $product->images()->create([
+                'path' => $path
+            ]);
         }
     }
 }
-
 
   public function applyPromotion(string $id, float $discountPrice, ?\DateTime $endDate = null): bool
   {
@@ -235,24 +256,25 @@ private function handleProductImages(Product $product, array $imageData): void
     return $this->productRepository->removePromotion($id);
   }
 
-  public function deleteProduct(string $id): bool
-  {
+public function deleteProduct(string $id): bool
+{
     $product = $this->productRepository->findById($id);
 
     if (!$product) {
-      return false;
+        return false;
     }
 
-    try {
-      return $this->productRepository->delete($product) !== false;
-    } catch (\Exception $e) {
-      Log::error('Erreur lors de la suppression du produit', [
-        'error' => $e->getMessage(),
-        'product_id' => $id
-      ]);
-      throw $e;
-    }
-  }
+    return DB::transaction(function () use ($product) {
+
+        // 1️⃣ Supprimer le dossier images
+        $basePath = $this->productBasePath($product);
+        Storage::disk('public')->deleteDirectory($basePath);
+
+        // 2️⃣ Supprimer le produit (cascade images)
+        return $this->productRepository->delete($product) !== false;
+    });
+}
+
 
   private function checkStockAndDispatchEvents(Product $product): void
   {
@@ -265,9 +287,10 @@ private function handleProductImages(Product $product, array $imageData): void
     }
   }
 
-  public function deleteImage(ProductImage $image): void
-  {
-      Storage::delete($image->path);
-      $image->delete();
-  }
+public function deleteImage(ProductImage $image): void
+{
+    Storage::disk('public')->delete($image->path);
+    $image->delete();
+}
+
 }

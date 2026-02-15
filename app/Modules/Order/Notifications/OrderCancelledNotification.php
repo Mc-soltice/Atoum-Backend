@@ -6,12 +6,11 @@ use App\Modules\Order\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 
 /**
- * Notification pour la création de commande
+ * Notification pour l'annulation de commande
  */
-class OrderNotification extends Notification
+class OrderCancelledNotification extends Notification
 {
     use Queueable;
 
@@ -20,7 +19,8 @@ class OrderNotification extends Notification
      */
     public function __construct(
         private Order $order,
-        private string $recipientType // 'customer' ou 'admin'
+        private string $reason,
+        private string $recipientType
     ) {}
 
     /**
@@ -32,7 +32,7 @@ class OrderNotification extends Notification
     }
 
     /**
-     * Format email pour le client
+     * Format email
      */
     public function toMail($notifiable): MailMessage
     {
@@ -43,22 +43,20 @@ class OrderNotification extends Notification
         return $this->adminMail();
     }
 
-    
-
     /**
      * Email pour le client
      */
     private function customerMail(): MailMessage
     {
         return (new MailMessage)
-            ->subject('Confirmation de votre commande ' . $this->order->reference)
+            ->subject('Annulation de votre commande ' . $this->order->reference)
             ->greeting('Bonjour ' . $this->order->shipping_address['first_name'] . ',')
-            ->line('Nous avons bien reçu votre commande n° **' . $this->order->reference . '**.')
-            ->line('**Montant total :** ' . number_format($this->order->total_amount, 0, ',', ' ') . ' FCFA')
-            ->line('**Méthode de paiement :** ' . $this->order->payment_method)
-            ->line('**Statut :** En attente de paiement')
-            ->action('Voir ma commande', route('orders.show', $this->order->id))
-            ->line('Vous recevrez un email lorsque votre commande sera expédiée.')
+            ->line('Votre commande **' . $this->order->reference . '** a été annulée.')
+            ->line('**Raison :** ' . $this->reason)
+            ->line('**Montant remboursé :** ' . number_format($this->order->total_amount, 0, ',', ' ') . ' FCFA')
+            ->line('Le remboursement sera effectué dans les 5 à 10 jours ouvrables sur votre moyen de paiement initial.')
+            ->line('Si vous avez des questions, n\'hésitez pas à nous contacter.')
+            ->action('Voir mes commandes', route('orders.index'))
             ->salutation('Cordialement,<br>L\'équipe ' . config('app.name'));
     }
 
@@ -68,15 +66,17 @@ class OrderNotification extends Notification
     private function adminMail(): MailMessage
     {
         return (new MailMessage)
-            ->subject('🛒 Nouvelle commande : ' . $this->order->reference)
-            ->line('**Nouvelle commande reçue !**')
+            ->subject('❌ Commande annulée : ' . $this->order->reference)
+            ->line('**Commande annulée**')
             ->line('**Référence :** ' . $this->order->reference)
             ->line('**Client :** ' . $this->order->shipping_address['first_name'] . ' ' . $this->order->shipping_address['last_name'])
             ->line('**Email :** ' . $this->order->shipping_address['email'])
             ->line('**Montant :** ' . number_format($this->order->total_amount, 0, ',', ' ') . ' FCFA')
-            ->line('**Articles :** ' . $this->order->items->count() . ' produit(s)')
+            ->line('**Raison :** ' . $this->reason)
+            ->line('**Date d\'annulation :** ' . $this->order->cancelled_at->format('d/m/Y H:i'))
+            ->line('**Stock restauré :** Oui')
             ->action('Voir la commande', route('admin.orders.show', $this->order->id))
-            ->line('Merci de traiter cette commande dans les plus brefs délais.');
+            ->line('Le stock a été automatiquement réintégré.');
     }
 
     /**
@@ -87,28 +87,13 @@ class OrderNotification extends Notification
         return [
             'order_id' => $this->order->id,
             'reference' => $this->order->reference,
-            'type' => 'order_created',
+            'type' => 'order_cancelled',
+            'reason' => $this->reason,
             'recipient_type' => $this->recipientType,
-            'title' => $this->recipientType === 'customer' 
-                ? 'Commande confirmée'
-                : 'Nouvelle commande',
-            'message' => $this->recipientType === 'customer'
-                ? 'Votre commande ' . $this->order->reference . ' a été créée avec succès.'
-                : 'Nouvelle commande ' . $this->order->reference . ' de ' . $this->order->shipping_address['first_name'],
+            'title' => 'Commande annulée',
+            'message' => 'Commande ' . $this->order->reference . ' annulée : ' . $this->reason,
             'amount' => $this->order->total_amount,
             'created_at' => now()->toDateTimeString(),
         ];
-    }
-
-    /**
-     * Format pour la diffusion en temps réel
-     */
-    public function toBroadcast($notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage([
-            'order_id' => $this->order->id,
-            'reference' => $this->order->reference,
-            'type' => 'order_created',
-        ]);
     }
 }

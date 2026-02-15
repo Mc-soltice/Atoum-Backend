@@ -325,6 +325,814 @@
                 ]
             }
         },
+        "/api/admin/delivery-options": {
+            "get": {
+                "tags": [
+                    "DeliveryOptions"
+                ],
+                "summary": "Lister toutes les options de livraison (Admin)",
+                "description": "Liste toutes les options de livraison (Admin)",
+                "operationId": "50915775740d0570cb3eb562c9232961",
+                "parameters": [
+                    {
+                        "name": "is_active",
+                        "in": "query",
+                        "description": "Filtrer par statut actif",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Rechercher par nom",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste des options de livraison",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/DeliveryOption"
+                                            }
+                                        },
+                                        "meta": {
+                                            "properties": {
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Non authentifié"
+                    },
+                    "403": {
+                        "description": "Non autorisé"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "DeliveryOptions"
+                ],
+                "summary": "Créer une option de livraison",
+                "description": "Crée une nouvelle option",
+                "operationId": "cd744f285f1f79f5e97a87a91ec487b2",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "price",
+                                    "delay_days"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Livraison Express"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Livraison en 24h"
+                                    },
+                                    "price": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 2500
+                                    },
+                                    "delay_days": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "order": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Option créée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeliveryOption"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/delivery-options/available": {
+            "get": {
+                "tags": [
+                    "DeliveryOptions"
+                ],
+                "summary": "Lister les options de livraison disponibles",
+                "description": "Liste les options actives (Public)",
+                "operationId": "70c8675975e1b6bc2cc1b68e7e589478",
+                "responses": {
+                    "200": {
+                        "description": "Liste des options actives",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DeliveryOption"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/delivery-options/{id}": {
+            "get": {
+                "tags": [
+                    "DeliveryOptions"
+                ],
+                "summary": "Afficher une option de livraison",
+                "description": "Affiche une option spécifique",
+                "operationId": "1a5bd6aecce0492405e9986434fe7d0f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "UUID de l'option de livraison",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Détails de l'option",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeliveryOption"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Option non trouvée"
+                    }
+                }
+            }
+        },
+        "/api/admin/delivery-options/{id}": {
+            "put": {
+                "tags": [
+                    "DeliveryOptions"
+                ],
+                "summary": "Mettre à jour une option de livraison",
+                "description": "Met à jour une option",
+                "operationId": "9d050ef0e5de36d26f7241b54c46deb2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Livraison Express"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Livraison en 24h"
+                                    },
+                                    "price": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 2500
+                                    },
+                                    "delay_days": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "order": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Option mise à jour",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeliveryOption"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Option non trouvée"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "DeliveryOptions"
+                ],
+                "summary": "Supprimer une option de livraison",
+                "description": "Supprime une option",
+                "operationId": "362449c33c60c9eaa6958667cd2d6c7f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Option supprimée"
+                    },
+                    "400": {
+                        "description": "Impossible de supprimer (option utilisée)"
+                    },
+                    "404": {
+                        "description": "Option non trouvée"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/delivery-options/{id}/toggle": {
+            "patch": {
+                "tags": [
+                    "DeliveryOptions"
+                ],
+                "summary": "Activer/désactiver une option",
+                "description": "Active/désactive une option",
+                "operationId": "62addda01b8e3be31310c3afabc8cc8a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Statut modifié",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeliveryOption"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Option non trouvée"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/delivery-options/reorder": {
+            "patch": {
+                "tags": [
+                    "DeliveryOptions"
+                ],
+                "summary": "Réorganiser l'ordre des options",
+                "description": "Réorganise l'ordre des options",
+                "operationId": "27a63c43fa6ccfc55e920ea1ee1f9bc5",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "order"
+                                ],
+                                "properties": {
+                                    "order": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "order": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Ordre mis à jour"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/orders": {
+            "get": {
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Lister toutes les commandes",
+                "description": "Liste toutes les commandes (admin)",
+                "operationId": "f9110b0177971f1a41ef56b762caff57",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filtrer par statut",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Rechercher par référence ou email",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste des commandes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/OrderResource"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Créer une commande",
+                "description": "Crée une nouvelle commande",
+                "operationId": "e1ae39e0ddc3088dc3455481940de472",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Order"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Commande créée avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderResource"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/user/orders": {
+            "get": {
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Lister mes commandes",
+                "description": "Liste les commandes de l'utilisateur connecté",
+                "operationId": "6b215757b65520204a6ccc1e09d03125",
+                "responses": {
+                    "200": {
+                        "description": "Liste des commandes de l'utilisateur",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/OrderResource"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/orders/{id}": {
+            "get": {
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Afficher une commande",
+                "description": "Affiche une commande spécifique",
+                "operationId": "fb4d3aa020d284375308a06951d9fa82",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Détails de la commande",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderResource"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Commande non trouvée"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Supprimer une commande",
+                "description": "Supprime une commande (admin)",
+                "operationId": "9104432a30fa8d1523b11ff3435a65a2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Commande supprimée"
+                    },
+                    "400": {
+                        "description": "Suppression impossible"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/orders/{id}/status": {
+            "patch": {
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Mettre à jour le statut",
+                "description": "Met à jour le statut d'une commande (admin)",
+                "operationId": "f4c30aa8efe944b2451f8aa774c7b12a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "status"
+                                ],
+                                "properties": {
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "pending",
+                                            "paid",
+                                            "shipped",
+                                            "delivered",
+                                            "cancelled"
+                                        ]
+                                    },
+                                    "notes": {
+                                        "type": "string",
+                                        "maxLength": 500
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Statut mis à jour",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderResource"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Transition invalide"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/orders/{id}/cancel": {
+            "post": {
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Annuler une commande",
+                "description": "Annule une commande",
+                "operationId": "627f2dc2c6715148f78ca613b12802b0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "notes": {
+                                        "type": "string",
+                                        "maxLength": 500
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Commande annulée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrderResource"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Annulation impossible"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/orders/statistics": {
+            "get": {
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Statistiques des commandes",
+                "description": "Statistiques des commandes (admin)",
+                "operationId": "4e1045f0eb67b827a3ff451efe36a72b",
+                "responses": {
+                    "200": {
+                        "description": "Statistiques",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 150
+                                        },
+                                        "pending": {
+                                            "type": "integer",
+                                            "example": 25
+                                        },
+                                        "paid": {
+                                            "type": "integer",
+                                            "example": 40
+                                        },
+                                        "shipped": {
+                                            "type": "integer",
+                                            "example": 30
+                                        },
+                                        "delivered": {
+                                            "type": "integer",
+                                            "example": 45
+                                        },
+                                        "cancelled": {
+                                            "type": "integer",
+                                            "example": 10
+                                        },
+                                        "total_revenue": {
+                                            "type": "number",
+                                            "format": "float",
+                                            "example": 1500000.5
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/users/categories": {
             "get": {
                 "tags": [
@@ -597,30 +1405,35 @@
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "required": [
                                     "name",
                                     "category_id",
+                                    "main_image",
                                     "price",
                                     "stock"
                                 ],
                                 "properties": {
                                     "name": {
-                                        "type": "string",
-                                        "example": "Produit test"
+                                        "type": "string"
                                     },
                                     "category_id": {
-                                        "type": "integer",
-                                        "example": 1
+                                        "type": "integer"
+                                    },
+                                    "main_image": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "images[]": {
+                                        "type": "string",
+                                        "format": "binary"
                                     },
                                     "price": {
-                                        "type": "number",
-                                        "example": 99.99
+                                        "type": "number"
                                     },
                                     "stock": {
-                                        "type": "integer",
-                                        "example": 50
+                                        "type": "integer"
                                     }
                                 },
                                 "type": "object"
@@ -726,35 +1539,6 @@
                 ]
             }
         },
-        "/api/users/products/{id}/stock": {
-            "patch": {
-                "tags": [
-                    "Products"
-                ],
-                "summary": "Mettre à jour le stock d'un produit",
-                "operationId": "8d5ce616e76c9c5ea19d6c45b1460894",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Stock mis à jour"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
         "/api/users/products/{id}/promotion": {
             "post": {
                 "tags": [
@@ -849,31 +1633,35 @@
                 ]
             }
         },
-        "/api/users/products/{id}/restore": {
-            "post": {
+        "/api/products/{id}/image": {
+            "delete": {
                 "tags": [
                     "Products"
                 ],
-                "summary": "Restaurer un produit supprimé",
-                "operationId": "b8ca7ad6a0be8bf2a0e6cc7a3cfc56db",
+                "summary": "Supprimer l'image d'un produit",
+                "operationId": "1aeb418522a014a6d8d9e29d10794069",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "format": "uuid"
                         }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "Produit restauré"
+                    "204": {
+                        "description": "Image supprimée"
+                    },
+                    "404": {
+                        "description": "Produit non trouvé"
                     }
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -881,6 +1669,385 @@
     },
     "components": {
         "schemas": {
+            "DeliveryOption": {
+                "required": [
+                    "id",
+                    "name",
+                    "price",
+                    "delay_days"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Livraison standard"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Livraison sous 3-5 jours ouvrables",
+                        "nullable": true
+                    },
+                    "price": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 1500
+                    },
+                    "delay_days": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "order": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-15T10:30:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-15T10:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "DeliveryOptionRequest": {
+                "required": [
+                    "name",
+                    "price",
+                    "delay_days"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "example": "Livraison Express"
+                    },
+                    "description": {
+                        "type": "string",
+                        "maxLength": 500,
+                        "example": "Livraison en 24h",
+                        "nullable": true
+                    },
+                    "price": {
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0,
+                        "example": 2500
+                    },
+                    "delay_days": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "example": 1
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "order": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "example": 1
+                    }
+                },
+                "type": "object"
+            },
+            "DeliveryOptionResource": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Livraison standard"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Livraison sous 3-5 jours ouvrables",
+                        "nullable": true
+                    },
+                    "price": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 1500
+                    },
+                    "delay_days": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "order": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-15T10:30:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-15T10:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "Order": {
+                "required": [
+                    "id",
+                    "reference",
+                    "user_id",
+                    "status",
+                    "total_amount"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "Modèle représentant une commande utilisateur",
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    },
+                    "reference": {
+                        "type": "string",
+                        "example": "ORD-2026-00012"
+                    },
+                    "user_id": {
+                        "type": "integer",
+                        "example": 5
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "paid",
+                            "shipped",
+                            "delivered",
+                            "cancelled"
+                        ],
+                        "example": "pending"
+                    },
+                    "total_amount": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 45999.99
+                    },
+                    "currency": {
+                        "type": "string",
+                        "example": "€"
+                    },
+                    "shipping_address": {
+                        "type": "object"
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OrderItem"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "OrderItem": {
+                "required": [
+                    "id",
+                    "order_id",
+                    "product_id",
+                    "quantity",
+                    "unit_price",
+                    "total_price"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "Modèle représentant un item d'une commande",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "order_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    },
+                    "product_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440001"
+                    },
+                    "product_name": {
+                        "type": "string",
+                        "example": "Miel naturel bio"
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "unit_price": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 22999.99
+                    },
+                    "total_price": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 45999.98
+                    }
+                },
+                "type": "object"
+            },
+            "OrderItemResource": {
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "product_name": {
+                        "type": "string"
+                    },
+                    "quantity": {
+                        "type": "integer"
+                    },
+                    "unit_price": {
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "total_price": {
+                        "type": "number",
+                        "format": "float"
+                    }
+                },
+                "type": "object"
+            },
+            "OrderResource": {
+                "title": "Order Resource",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "properties": {
+                            "value": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "payment_method": {
+                        "type": "string"
+                    },
+                    "items_total": {
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "delivery_cost": {
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "total_amount": {
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "delivery": {
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "price": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "delay_days": {
+                                "type": "integer"
+                            },
+                            "estimated_delivery": {
+                                "type": "string",
+                                "format": "date"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "shipping_address": {
+                        "type": "string"
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OrderItemResource"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "cancelled_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "can_be_cancelled": {
+                        "type": "boolean"
+                    },
+                    "_links": {
+                        "properties": {
+                            "self": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string"
+                            },
+                            "cancel": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
             "Category": {
                 "title": "Category",
                 "description": "Modèle Category",
@@ -939,6 +2106,14 @@
         {
             "name": "Authentication",
             "description": "Endpoints pour l'authentification et la gestion des utilisateurs"
+        },
+        {
+            "name": "DeliveryOptions",
+            "description": "Gestion des options de livraison"
+        },
+        {
+            "name": "Orders",
+            "description": "Gestion des commandes utilisateur"
         },
         {
             "name": "Categories",

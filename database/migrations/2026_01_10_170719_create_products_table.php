@@ -16,7 +16,7 @@ return new class extends Migration {
             $table->string('main_image')->nullable();
             $table->text('description')->nullable();
             $table->json('ingredients')->nullable();
-            $table->json('usage')->nullable();
+            $table->string('usage_instructions')->nullable();
             $table->json('benefits')->nullable();
             $table->integer('stock')->default(0);
             $table->boolean('is_promotional')->default(false);

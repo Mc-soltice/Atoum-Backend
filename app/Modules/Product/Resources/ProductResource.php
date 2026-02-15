@@ -44,18 +44,16 @@ class ProductResource extends JsonResource
                 ? asset('storage/' . $this->main_image)
                 : null,
 
-            // 🔥 CORRECTION CRITIQUE ICI
-            'gallery' => $this->whenLoaded('images', function () {
-                return $this->images->map(fn ($img) =>
-                    asset('storage/' . $img->image_path)
-                );
-            }, []),
+'gallery' => $this->whenLoaded('images', fn () =>
+    $this->images->map(fn ($img) => asset('storage/' . $img->path))
+),
+
 
 
             'description' => $this->description,
             'ingredients' => $this->ingredients ?? [],
             'benefits' => $this->benefits ?? [],
-            'usage' => $this->usage,
+            'usage_instructions' => $this->usage_instructions,
 
             'stock' => $this->stock,
             'is_promotional' => $this->is_promotional,
@@ -65,6 +63,4 @@ class ProductResource extends JsonResource
           }
 }
             
-// 'is_stock_low' => $this->isStockLow(),
-// 'is_out_of_stock' => $this->isOutOfStock(),
 
