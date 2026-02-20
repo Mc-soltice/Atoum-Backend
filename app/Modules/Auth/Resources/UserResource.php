@@ -4,28 +4,23 @@ namespace App\Modules\Auth\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Enums\Ability;
+use App\Enums\Role;
 
 class UserResource extends JsonResource
 {
-    /**
-     * Crée une nouvelle instance de ressource.
-     *
-     * @param mixed $resource
-     * @return void
-     */
-    public function __construct($resource = null)
-    {
-        parent::__construct($resource);
-    }
-
-    /**
-     * Transforme la ressource en tableau pour la réponse API.
-     *
-     * @param Request $request
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
+        // Récupération des abilities selon le rôle
+        $all = array_map(fn(Ability $a) => $a->value, Ability::cases());
+
+        $abilities = match ($this->role) {
+            Role::ADMIN->value => $all,
+            Role::GESTIONNAIRE->value => array_filter($all, fn($a) => !str_ends_with($a, '.delete')),
+            Role::CLIENT->value => array_filter($all, fn($a) => str_ends_with($a, '.view') || str_ends_with($a, '.create')),
+            default => [],
+        };
+
         return [
             'id' => $this->id,
             'first_name' => $this->first_name,
@@ -33,9 +28,8 @@ class UserResource extends JsonResource
             'phone' => $this->phone,
             'email' => $this->email,
             'is_locked' => $this->is_locked,
-            'roles' => $this->getRoleNames(),
-            'permissions' => $this->getAllPermissions()->pluck('name'),
-
+            'role' => $this->role,
+            'abilities' => array_values($abilities), // pour renvoyer un array indexé
         ];
     }
 }

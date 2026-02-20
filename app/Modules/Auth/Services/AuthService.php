@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Modules\Auth\Services;
 
 
@@ -7,6 +8,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use App\Modules\Auth\Events\UserUnlocked;
 use App\Modules\Auth\Repositories\AuthRepository;
+use App\Enums\Role;
+use App\Enums\Ability;
 
 class AuthService
 {
@@ -17,47 +20,57 @@ class AuthService
         $this->repository = $repository;
     }
 
+    private function getAbilitiesForRole(Role|string $role): array
+    {
+        // Si c'est un enum, on prend sa valeur string
+        if ($role instanceof Role) {
+            $role = $role->value;
+        }
+
+        $all = array_map(fn(Ability $a) => $a->value, Ability::cases());
+
+        return match ($role) {
+            Role::ADMIN->value => $all,
+            Role::GESTIONNAIRE->value => array_filter($all, fn($a) => !str_ends_with($a, '.delete')),
+            Role::CLIENT->value => array_filter($all, fn($a) => str_ends_with($a, '.view') || str_ends_with($a, '.create')),
+            default => [],
+        };
+    }
     public function register(array $data): User
     {
         $data['password'] = Hash::make($data['password']);
+        $data['role'] = $data['role'] ?? Role::CLIENT->value;
 
         $user = $this->repository->create($data);
 
-        // Assigner un rôle par défaut si aucun n'est fourni
-        $role = $data['role'] ?? 'client';
-        $user->assignRole($role);
+        // Créer un token avec abilities selon le rôle
+        $token = $user->createToken('auth_token', $this->getAbilitiesForRole($user->role))->plainTextToken;
 
-        return $user->load('roles', 'permissions');
+        return $user;
     }
 
     public function login(array $data): ?array
     {
-        // Recherche par l'email
         $user = $this->repository->findByEmail($data['email']);
 
         if (!$user || !Hash::check($data['password'], $user->password)) {
-            if ($user) {
-                $attempt = $user->loginAttempt()->firstOrCreate([]);
-                $attempt->increment('attempts');
-            }
             return null;
         }
 
-         $user->load('roles', 'permissions');
+        if ($user->is_locked) {
+            return null;
+        }
 
-        /***** reset les tentatives en cas de succès */
-        $user->loginAttempt()->updateOrCreate([], [
-            'attempts' => 0,
-            'locked_until' => null,
-        ]);
+        $abilities = $this->getAbilitiesForRole($user->role);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user
+            ->createToken('auth_token', $abilities)
+            ->plainTextToken;
 
-return [
-    'user' => $user->load('roles', 'permissions'),
-    'token' => $token,
-];
-
+        return [
+            'user'  => $user,
+            'token' => $token,
+        ];
     }
 
     public function logout(User $user): void
@@ -67,17 +80,12 @@ return [
 
     public function getAll()
     {
-        return $this->repository->getAll()->load('roles', 'permissions');
+        return $this->repository->getAll();
     }
 
     public function find($id)
     {
-        return $this->repository->find($id)->load('roles', 'permissions');
-    }
-
-    public function create(array $data): User
-    {
-        return $this->repository->create($data);
+        return $this->repository->find($id);
     }
 
     public function update(User $user, array $data): User
@@ -132,5 +140,4 @@ return [
 
         return $updatedUser;
     }
-
 }

@@ -49,7 +49,10 @@ class AuthController extends Controller
     public function register(RegisterRequest $request)
     {
         $user = $this->service->register($request->validated());
-        return response()->json(['user' => new UserResource($user)]);
+        return response()->json([
+            'user' => new UserResource($user),
+            'token' => $user->currentAccessToken()->plainTextToken ?? null,
+        ]);
     }
 
     /**
@@ -72,11 +75,15 @@ class AuthController extends Controller
     public function login(LoginRequest $request)
     {
         $credentials = $this->service->login($request->validated());
-        if (!$credentials)
+        if (!$credentials) {
             return response()->json(['message' => 'Invalid credentials'], 401);
-        return response()->json(['user' => new UserResource($credentials['user']), 'token' => $credentials['token']]);
-    }
+        }
 
+        return response()->json([
+            'user' => new UserResource($credentials['user']),
+            'token' => $credentials['token'],
+        ]);
+    }
     /**
      * @OA\Post(
      *     path="/api/users/logout",

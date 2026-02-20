@@ -3,12 +3,12 @@
 namespace App\Modules\Auth\Models;
 
 use Laravel\Sanctum\HasApiTokens;
-use Spatie\Permission\Traits\HasRoles;
 use Spatie\Activitylog\LogOptions;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use App\Traits\LogsModelActivity;
+use App\Enums\Role;
 
 /**
  * @property int $id
@@ -21,7 +21,7 @@ use App\Traits\LogsModelActivity;
  */
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, HasRoles, LogsModelActivity, Notifiable;
+    use HasApiTokens, HasFactory,  LogsModelActivity, Notifiable;
 
     /**
      * @property int $id
@@ -38,6 +38,7 @@ class User extends Authenticatable
         'last_name',
         'phone',
         'email',
+        'role',
         'password',
         'is_locked',
     ];
@@ -50,6 +51,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'is_locked' => 'boolean',
+        'role' => Role::class,
     ];
 
     /**
@@ -64,6 +66,7 @@ class User extends Authenticatable
                 'last_name',
                 'email',
                 'phone',
+                'role',
                 'is_locked'
             ])
             ->logOnlyDirty()
@@ -81,13 +84,13 @@ class User extends Authenticatable
     {
         return $this->hasOne(LoginAttempt::class);
     }
-
-    /**
-     * Spécifier l'emplacement de la factory
-     */
-    protected static function newFactory()
+    public function hasRole(Role|string $role): bool
     {
-        // Retirez cette méthode TEMPORAIREMENT pour éviter l'erreur
-        // return \Database\Factories\UserFactory::new();
+        return $this->role === ($role instanceof Role ? $role->value : $role);
+    }
+
+    public function tokenCanAbility(string $ability): bool
+    {
+        return $this->currentAccessToken()?->can($ability) ?? false;
     }
 }
