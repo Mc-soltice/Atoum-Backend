@@ -14,17 +14,16 @@ class ProductRepository
 {
   public function __construct(
     private Product $product
-  ) {
-  }
+  ) {}
 
   public function getAll(): Collection
   {
-    return $this->product->with('category')->get();
+    return $this->product->with('category', 'images')->get();
   }
 
   public function findById(string $id): ?Product
   {
-    return $this->product->with('category')->find($id);
+    return $this->product->with('category', 'images')->find($id);
   }
 
   public function findByCategory(int $categoryId): Collection
@@ -68,56 +67,56 @@ class ProductRepository
       ->get();
   }
 
-    public function create(array $data): Product
-    {
-        return Product::query()->create($data);
-    }
+  public function create(array $data): Product
+  {
+    return Product::query()->create($data);
+  }
 
-public function update(Product $product, array $data): bool
-{
+  public function update(Product $product, array $data): bool
+  {
     try {
-        // Convertir les tableaux en JSON si nécessaire
-        foreach (['ingredients', 'benefits'] as $field) {
-            if (isset($data[$field]) && is_array($data[$field])) {
-                $data[$field] = json_encode(array_values($data[$field]));
-            }
+      // Convertir les tableaux en JSON si nécessaire
+      foreach (['ingredients', 'benefits'] as $field) {
+        if (isset($data[$field]) && is_array($data[$field])) {
+          $data[$field] = json_encode(array_values($data[$field]));
         }
+      }
 
-        // Gérer la date de fin de promo
-        if (isset($data['promo_end_date']) && !empty($data['promo_end_date'])) {
-            $data['promo_end_date'] = \Carbon\Carbon::parse($data['promo_end_date']);
-        }
+      // Gérer la date de fin de promo
+      if (isset($data['promo_end_date']) && !empty($data['promo_end_date'])) {
+        $data['promo_end_date'] = \Carbon\Carbon::parse($data['promo_end_date']);
+      }
 
-        // Gérer original_price si is_promotional est false
-        if (isset($data['is_promotional']) && !$data['is_promotional']) {
-            $data['original_price'] = null;
-            $data['promo_end_date'] = null;
-        }
+      // Gérer original_price si is_promotional est false
+      if (isset($data['is_promotional']) && !$data['is_promotional']) {
+        $data['original_price'] = null;
+        $data['promo_end_date'] = null;
+      }
 
-        return $product->update($data);
+      return $product->update($data);
     } catch (\Exception $e) {
-        Log::error('Repository update error', [
-            'product_id' => $product->id,
-            'error' => $e->getMessage(),
-            'data' => $data
-        ]);
-        throw $e;
+      Log::error('Repository update error', [
+        'product_id' => $product->id,
+        'error' => $e->getMessage(),
+        'data' => $data
+      ]);
+      throw $e;
     }
-}
-    public function addGalleryImage(Product $product, string $path): void
-    {
-        ProductImage::query()->create([
-            'product_id' => $product->id,
-            'path' => $path,
-        ]);
-    }
+  }
+  public function addGalleryImage(Product $product, string $path): void
+  {
+    ProductImage::query()->create([
+      'product_id' => $product->id,
+      'path' => $path,
+    ]);
+  }
 
-    public function findWithRelations(string $id): Product
-    {
-        return Product::query()
-            ->with(['images', 'category'])
-            ->findOrFail($id);
-    }
+  public function findWithRelations(string $id): Product
+  {
+    return Product::query()
+      ->with(['images', 'category'])
+      ->findOrFail($id);
+  }
 
 
   public function updateStock(string $id, int $quantity): bool
@@ -203,6 +202,4 @@ public function update(Product $product, array $data): bool
 
     return false;
   }
-
-  
 }

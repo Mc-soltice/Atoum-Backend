@@ -44,9 +44,10 @@ class ProductResource extends JsonResource
                 ? asset('storage/' . $this->main_image)
                 : null,
 
-'gallery' => $this->whenLoaded('images', fn () =>
-    $this->images->map(fn ($img) => asset('storage/' . $img->path))
-),
+            // Version simplifiée : seulement les URLs
+            'gallery' => $this->whenLoaded('images', function () {
+                return $this->images->map(fn($image) => asset('storage/' . $image->path));
+            }, []),
 
 
 
@@ -59,8 +60,6 @@ class ProductResource extends JsonResource
             'is_promotional' => $this->is_promotional,
             'promo_end_date' => $this->promo_end_date?->toISOString(),
 
-            ];
-          }
+        ];
+    }
 }
-            
-

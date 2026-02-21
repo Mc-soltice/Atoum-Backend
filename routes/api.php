@@ -99,9 +99,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
   // ------------------ Commandes ------------------
   Route::prefix('orders')->group(function () {
     Route::get('/', [OrderController::class, 'index'])->middleware('ability:order.view');
-    Route::get('/{id}', [OrderController::class, 'show'])->middleware('ability:order.view');
+    Route::get('/{id}', [OrderController::class, 'show'])->middleware('ability:order.view')->name('orders.show');;
     Route::delete('/{id}', [OrderController::class, 'destroy'])->middleware('ability:order.delete');
-    Route::patch('/{id}/status', [OrderController::class, 'updateStatus'])->middleware('ability:order.update');
+    Route::patch('/{id}/status', [OrderController::class, 'updateStatus'])->middleware('ability:order.update')->name('orders.status.update');
     Route::post('/{id}/cancel', [OrderController::class, 'cancel'])->middleware('ability:order.update');
   });
 

@@ -78,24 +78,45 @@ class StoreProductRequest extends FormRequest
     public function validated($key = null, $default = null)
     {
         $validated = parent::validated($key, $default);
-        
+
         Log::info('StoreProductRequest validated data:', $validated);
-        
+
         //Log des erreurs de validation si elles existent
         if ($this->validator && $this->validator->fails()) {
             Log::error('Validation errors:', $this->validator->errors()->toArray());
         }
-        
+
         return $validated;
     }
 
     public function prepareForValidation()
     {
-        Log::info('prepareForValidation called with data:', $this->all());
-        
+        Log::info('All request data:', $this->all());
+        Log::info('All files:', array_keys($this->allFiles()));
+
+        // Vérifier spécifiquement le champ images
+        if ($this->hasFile('images')) {
+            $files = $this->file('images');
+            Log::info('Images files count:', ['count' => is_array($files) ? count($files) : 1]);
+        }
+
+        // Vérifier le format images[]
+        if ($this->hasFile('images[]')) {
+            $files = $this->file('images[]');
+            Log::info('Images[] files:', ['count' => count($files)]);
+        }
+
+        // Afficher tous les fichiers reçus
+        foreach ($this->allFiles() as $key => $file) {
+            if (is_array($file)) {
+                Log::info("Field {$key} has " . count($file) . " files");
+            } else {
+                Log::info("Field {$key} has file: " . $file->getClientOriginalName());
+            }
+        }
         // Convertir les chaînes JSON en tableaux
         $convertFields = ['ingredients', 'benefits', 'existing_gallery'];
-        
+
         foreach ($convertFields as $field) {
             if ($this->has($field) && is_string($this->input($field))) {
                 $decoded = json_decode($this->input($field), true);
