@@ -4,6 +4,7 @@ namespace App\Modules\Order\Services;
 
 use App\Modules\Order\Models\Order;
 use App\Modules\Order\Models\StockMovement;
+use App\Modules\Order\Enums\StockMovementReason;
 use App\Modules\Product\Models\Product;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,38 +23,50 @@ class StockService
     public function decreaseStockForOrder(Order $order): void
     {
         DB::transaction(function () use ($order) {
+
             foreach ($order->items as $item) {
+
+                // ⛔ ANTI DOUBLE DÉCRÉMENT (job retry / crash / double event)
+                if (
+                    StockMovement::where('order_id', $order->id)
+                    ->where('product_id', $item->product_id)
+                    ->where('movement_type', 'out')
+                    ->exists()
+                ) {
+                    continue;
+                }
+
                 $product = $item->product;
-                
-                // Vérifie le stock disponible
-                if ($product->stock < $item->quantity) {
+
+                // Stock avant
+                $oldStock = $product->stock;
+
+                // Sécurité stock
+                if ($oldStock < $item->quantity) {
                     throw new \Exception(
-                        "Stock insuffisant pour {$product->name}. " .
-                        "Disponible: {$product->stock}, Demandé: {$item->quantity}"
+                        "Stock insuffisant pour {$product->name} (dispo: {$oldStock}, demandé: {$item->quantity})"
                     );
                 }
-                
-                // Diminue le stock
+
+                $newStock = $oldStock - $item->quantity;
+
+                // Décrément réel
                 $product->decrement('stock', $item->quantity);
-                
-                // Enregistre le mouvement
+
+                // Historique
                 StockMovement::create([
-                    'product_id' => $product->id,
-                    'order_id' => $order->id,
-                    'movement_type' => 'out',
-                    'quantity' => $item->quantity,
-                    'reason' => 'order_creation',
+                    'product_id'         => $product->id,
+                    'order_id'           => $order->id,
+                    'movement_type'      => 'out',
+                    'quantity'           => $item->quantity,
+                    'reason'             => StockMovementReason::ORDER_CREATION->value,
                     'unit_price_at_time' => $item->unit_price,
+                    'new_stock'          => $newStock,
                     'metadata' => [
+                        'old_stock'       => $oldStock,
                         'order_reference' => $order->reference,
-                        'product_name' => $product->name,
+                        'product_name'    => $product->name,
                     ],
-                ]);
-                
-                Log::debug('Stock diminué', [
-                    'product_id' => $product->id,
-                    'quantity' => $item->quantity,
-                    'new_stock' => $product->stock
                 ]);
             }
         });
@@ -67,28 +80,38 @@ class StockService
         DB::transaction(function () use ($order) {
             foreach ($order->items as $item) {
                 $product = $item->product;
-                
+
+                // Stock avant restauration
+                $oldStock = $product->stock;
+
                 // Augmente le stock
                 $product->increment('stock', $item->quantity);
-                
+
+                // Vérifie que la mise à jour a bien fonctionné
+                $product->refresh();
+
                 // Enregistre le mouvement inverse
                 StockMovement::create([
                     'product_id' => $product->id,
                     'order_id' => $order->id,
                     'movement_type' => 'in',
                     'quantity' => $item->quantity,
-                    'reason' => 'order_cancellation',
+                    'reason' => StockMovementReason::ORDER_CANCELLATION->value, // CORRECTION ICI !
                     'unit_price_at_time' => $item->unit_price,
+                    'new_stock' => $product->stock, // Utilise le stock après mise à jour
                     'metadata' => [
                         'order_reference' => $order->reference,
                         'cancelled_at' => $order->cancelled_at,
                         'product_name' => $product->name,
+                        'old_stock' => $oldStock
                     ],
                 ]);
-                
+
                 Log::debug('Stock restauré', [
                     'product_id' => $product->id,
+                    'product_name' => $product->name,
                     'quantity' => $item->quantity,
+                    'old_stock' => $oldStock,
                     'new_stock' => $product->stock
                 ]);
             }
@@ -101,11 +124,11 @@ class StockService
     public function checkStockAvailability(string $productId, int $quantity): bool
     {
         $product = Product::find($productId);
-        
+
         if (!$product) {
             return false;
         }
-        
+
         return $product->stock >= $quantity;
     }
 
@@ -122,11 +145,11 @@ class StockService
         if (!empty($filters['type'])) {
             $query->where('movement_type', $filters['type']);
         }
-        
+
         if (!empty($filters['date_from'])) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
         }
-        
+
         if (!empty($filters['date_to'])) {
             $query->whereDate('created_at', '<=', $filters['date_to']);
         }

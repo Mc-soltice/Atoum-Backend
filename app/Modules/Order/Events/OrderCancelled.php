@@ -6,9 +6,12 @@ use App\Modules\Order\Models\Order;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class OrderCreated
+class OrderCancelled
 {
-    use Dispatchable, SerializesModels;
+  use Dispatchable, SerializesModels;
 
-    public function __construct(public Order $order) {}
+  public function __construct(
+    public Order $order,
+    public string $reason
+  ) {}
 }

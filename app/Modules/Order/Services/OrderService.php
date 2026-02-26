@@ -3,7 +3,6 @@
 namespace App\Modules\Order\Services;
 
 use App\Modules\Order\Models\Order;
-use App\Modules\Order\Models\OrderItem;
 use App\Modules\Product\Models\Product;
 use App\Modules\Order\Repositories\OrderRepository;
 use App\Modules\Order\Events\OrderCreated;
@@ -12,7 +11,6 @@ use App\Modules\Order\Events\OrderCancelled;
 use App\Modules\Order\Enums\OrderStatus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Collection;
 use App\Modules\Delivery\Models\DeliveryOption;
 
@@ -26,7 +24,6 @@ class OrderService
 {
     public function __construct(
         private OrderRepository $repository,
-        private StockService $stockService,
         private NotificationService $notificationService
     ) {}
 
@@ -55,7 +52,7 @@ class OrderService
 
                 // Calcule le total des items
                 $itemsDetails = $this->calculateItemsDetails($data['items']);
-                
+
                 // Calcule le total final avec livraison
                 $totalAmount = $itemsDetails->sum('subtotal') + $deliveryOption->price;
 
@@ -76,12 +73,11 @@ class OrderService
                 // Ajoute les items
                 $this->repository->addItems($order, $itemsDetails->toArray());
 
-                // Déduit le stock
-                $this->stockService->decreaseStockForOrder($order);
-
                 // Déclenche l'événement de création
-                Event::dispatch(new OrderCreated($order));
-
+                DB::afterCommit(
+                    fn() =>
+                    event(new OrderCreated($order))
+                );
                 // Envoie les notifications
                 $this->notificationService->notifyOrderCreated($order);
 
@@ -92,7 +88,6 @@ class OrderService
                 ]);
 
                 return $order->load(['items.product', 'deliveryOption']);
-
             } catch (\Exception $e) {
                 Log::error('Erreur lors de la création de la commande', [
                     'error' => $e->getMessage(),
@@ -105,37 +100,63 @@ class OrderService
 
     /**
      * Met à jour le statut d'une commande
+     *
+     * @throws \InvalidArgumentException
      */
-    public function updateStatus(Order $order, OrderStatus $status, ?string $notes = null): Order
-    {
-        return DB::transaction(function () use ($order, $status, $notes) {
-            // Vérifie si la transition est valide
-            if (!$order->status->canTransitionTo($status)) {
+    public function updateStatus(
+        Order $order,
+        OrderStatus $newStatus,
+    ): Order {
+        return DB::transaction(function () use ($order, $newStatus) {
+
+            $currentStatus = $order->status;
+
+            // 🔒 Blocage des statuts finaux
+            if ($currentStatus->isFinal()) {
                 throw new \InvalidArgumentException(
-                    "Transition impossible de {$order->status->value} vers {$status->value}"
+                    "La commande est dans un état final ({$currentStatus->value})"
                 );
             }
 
-            // Ancien statut pour le log
-            $oldStatus = $order->status;
+            // 🔁 Vérification stricte de la transition
+            if (! $currentStatus->canTransitionTo($newStatus)) {
+                throw new \InvalidArgumentException(
+                    "Transition impossible de {$currentStatus->value} vers {$newStatus->value}"
+                );
+            }
 
-            // Met à jour le statut
-            $order = $this->repository->updateStatus($order, $status, $notes);
+            // ✅ Mise à jour du statut
+            $order = $this->repository->updateStatus($order, $newStatus);
 
-            // Gère les actions spécifiques au statut
-            $this->handleStatusSpecificActions($order, $status, $oldStatus);
+            // ✅ ACTIONS MÉTIER LIÉES AU NOUVEAU STATUT
+            switch ($newStatus) {
+                case OrderStatus::CANCELLED:
+                    DB::afterCommit(
+                        fn() =>
+                        event(new OrderCancelled(
+                            $order,
+                            'Annulation via changement de statut'
+                        ))
+                    );
+                    break;
+            }
 
-            // Déclenche l'événement
-            Event::dispatch(new OrderStatusUpdated($order, $oldStatus));
+            // Event générique (log, notifications, etc.)
+            event(new OrderStatusUpdated(
+                order: $order,
+                oldStatus: $currentStatus,
+                newStatus: $newStatus
+            ));
 
-            // Envoie les notifications
-            $this->notificationService->notifyOrderStatusUpdated($order, $oldStatus);
+            // Notification
+            $this->notificationService
+                ->notifyOrderStatusUpdated($order, $currentStatus, $newStatus);
 
             Log::info('Statut de commande mis à jour', [
-                'order_id' => $order->id,
-                'reference' => $order->reference,
-                'old_status' => $oldStatus->value,
-                'new_status' => $status->value
+                'order_id'   => $order->id,
+                'reference'  => $order->reference,
+                'old_status' => $currentStatus->value,
+                'new_status' => $newStatus->value,
             ]);
 
             return $order->load(['items.product', 'deliveryOption']);
@@ -144,36 +165,25 @@ class OrderService
 
     /**
      * Annule une commande et réinjecte le stock
+     *
+     * @throws \InvalidArgumentException
      */
-    public function cancel(Order $order, string $reason, ?string $notes = null): Order
+    public function cancel(Order $order, string $reason): Order
     {
-        return DB::transaction(function () use ($order, $reason, $notes) {
-            // Vérifie si la commande peut être annulée
-            if (!$order->canBeCancelled()) {
-                throw new \InvalidArgumentException(
-                    "La commande ne peut pas être annulée dans son état actuel ({$order->status->value})"
-                );
+        return DB::transaction(function () use ($order, $reason) {
+
+            if ($order->status->isFinal()) {
+                throw new \InvalidArgumentException("Commande finale");
             }
 
-            // Annule la commande
-            $order = $this->repository->cancel($order, $reason, $notes);
+            $order = $this->repository->cancel($order, $reason);
 
-            // Réinjecte le stock
-            $this->stockService->restoreStockForOrder($order);
+            DB::afterCommit(
+                fn() =>
+                event(new OrderCancelled($order, $reason))
+            );
 
-            // Déclenche l'événement d'annulation
-            Event::dispatch(new OrderCancelled($order, $reason));
-
-            // Envoie les notifications
-            $this->notificationService->notifyOrderCancelled($order, $reason);
-
-            Log::info('Commande annulée', [
-                'order_id' => $order->id,
-                'reference' => $order->reference,
-                'reason' => $reason
-            ]);
-
-            return $order->load(['items.product', 'deliveryOption']);
+            return $order;
         });
     }
 
@@ -183,7 +193,7 @@ class OrderService
     public function delete(string $id): void
     {
         $order = $this->repository->find($id);
-        
+
         if (!$order) {
             throw new \Exception('Commande non trouvée');
         }
@@ -218,7 +228,7 @@ class OrderService
 
         foreach ($items as $item) {
             $product = Product::find($item['product_id']);
-            
+
             if (!$product) {
                 $errors[] = "Produit {$item['product_id']} non trouvé";
                 continue;
@@ -243,7 +253,7 @@ class OrderService
 
         foreach ($items as $item) {
             $product = Product::findOrFail($item['product_id']);
-            
+
             $itemsDetails->push([
                 'product_id' => $product->id,
                 'product_name' => $product->name,
@@ -265,12 +275,12 @@ class OrderService
             case OrderStatus::CANCELLED:
                 // Réinjection du stock déjà gérée dans la méthode cancel
                 break;
-                
-            case OrderStatus::PAID:
-                // Peut déclencher la préparation de commande
-                break;
-                
-                
+
+            // case OrderStatus::PAID:
+            //     // Peut déclencher la préparation de commande
+            //     break;
+
+
             case OrderStatus::DELIVERED:
                 // Peut déclencher la demande d'avis
                 break;

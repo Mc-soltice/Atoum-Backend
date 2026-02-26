@@ -11,6 +11,7 @@ use App\Modules\Order\Repositories\OrderRepository;
 use App\Modules\Order\Resources\OrderResource;
 use Illuminate\Support\Facades\Log;
 use App\Modules\Order\Enums\OrderStatus;
+use App\Modules\Order\Resources\StockMouvementResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -70,7 +71,6 @@ class OrderController extends Controller
                 new OrderResource($order),
                 201
             );
-
         } catch (\Exception $e) {
 
             return response()->json([
@@ -118,9 +118,9 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only(['status', 'search', 'date_from', 'date_to']);
-        
+
         $orders = $this->repository->all($filters);
-        
+
         return response()->json([
             'data' => OrderResource::collection($orders),
             'meta' => [
@@ -157,9 +157,9 @@ class OrderController extends Controller
     public function myOrders(Request $request): JsonResponse
     {
         $filters = $request->only(['status', 'date_from', 'date_to']);
-        
+
         $orders = $this->repository->forUser(auth()->id(), $filters);
-        
+
         return response()->json([
             'data' => OrderResource::collection($orders),
             'meta' => [
@@ -199,15 +199,15 @@ class OrderController extends Controller
     public function show(string $id): JsonResponse
     {
         $order = $this->repository->find($id);
-        
+
         if (!$order) {
             return response()->json([
                 'message' => 'Commande non trouvée'
             ], 404);
         }
         Log::info("Affichage de la commande ID: $order");
-        
-        
+
+
         return response()->json(
             new OrderResource($order)
         );
@@ -250,17 +250,17 @@ class OrderController extends Controller
     {
         try {
             $order = $this->repository->find($id);
-            
+
             if (!$order) {
                 return response()->json([
                     'message' => 'Commande non trouvée'
                 ], 404);
             }
-            
-            
+
+
             $validated = $request->validated();
             $status = OrderStatus::from($validated['status']);
-            
+
             $order = $this->service->updateStatus(
                 $order,
                 $status,
@@ -314,21 +314,21 @@ class OrderController extends Controller
     {
         try {
             $order = $this->repository->find($id);
-            
+
             if (!$order) {
                 return response()->json([
                     'message' => 'Commande non trouvée'
                 ], 404);
             }
-            
+
             $validated = $request->validated();
-            
+
             $order = $this->service->cancel(
                 $order,
                 $validated['reason'],
                 $validated['notes'] ?? null
             );
-            
+
             return response()->json(
                 new OrderResource($order)
             );
@@ -367,7 +367,7 @@ class OrderController extends Controller
     {
         try {
             $this->service->delete($id);
-            
+
             return response()->json(null, 204);
         } catch (\Exception $e) {
             return response()->json([
@@ -403,7 +403,13 @@ class OrderController extends Controller
     public function statistics(): JsonResponse
     {
         $stats = $this->repository->getStatistics();
-        
+
         return response()->json($stats);
+    }
+    public function stock_movements()
+    {
+        $stock = $this->repository->getStock();
+
+        return StockMouvementResource::collection($stock);
     }
 }

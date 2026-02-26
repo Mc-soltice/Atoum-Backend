@@ -19,9 +19,10 @@ class OrderStatusUpdatedNotification extends Notification
      * Constructeur
      */
     public function __construct(
-        private Order $order,
-        private OrderStatus $oldStatus,
-        private string $recipientType
+        public Order $order,
+        public OrderStatus $oldStatus,
+        public OrderStatus $newStatus,
+        public string $recipientType
     ) {}
 
     /**
@@ -40,7 +41,7 @@ class OrderStatusUpdatedNotification extends Notification
         if ($this->recipientType === 'customer') {
             return $this->customerMail();
         }
-        
+
         return $this->adminMail();
     }
 
@@ -49,8 +50,8 @@ class OrderStatusUpdatedNotification extends Notification
      */
     private function customerMail(): MailMessage
     {
-        $subject = match($this->order->status) {
-            OrderStatus::PAID => 'Paiement confirmé - Commande ' . $this->order->reference,
+        $subject = match ($this->order->status) {
+            // OrderStatus::PAID => 'Paiement confirmé - Commande ' . $this->order->reference,
             OrderStatus::SHIPPED => 'Votre commande a été expédiée',
             OrderStatus::DELIVERED => 'Votre commande a été livrée',
             OrderStatus::CANCELLED => 'Annulation de votre commande',
@@ -62,32 +63,32 @@ class OrderStatusUpdatedNotification extends Notification
             ->greeting('Bonjour ' . $this->order->shipping_address['first_name'] . ',');
 
         switch ($this->order->status) {
-            case OrderStatus::PAID:
-                $mail->line('Votre paiement pour la commande **' . $this->order->reference . '** a été confirmé.')
-                     ->line('Nous préparons maintenant votre commande.');
-                break;
-                
+            // case OrderStatus::PAID:
+            //     $mail->line('Votre paiement pour la commande **' . $this->order->reference . '** a été confirmé.')
+            //         ->line('Nous préparons maintenant votre commande.');
+            //     break;
+
             case OrderStatus::SHIPPED:
                 $mail->line('Votre commande **' . $this->order->reference . '** a été expédiée.')
-                     ->line('**Numéro de suivi :** ' . ($this->order->tracking_number ?? 'À venir'))
-                     ->line('Vous recevrez un email lorsque votre colis sera livré.');
+                    ->line('**Numéro de suivi :** ' . ($this->order->tracking_number ?? 'À venir'))
+                    ->line('Vous recevrez un email lorsque votre colis sera livré.');
                 break;
-                
+
             case OrderStatus::DELIVERED:
                 $mail->line('Votre commande **' . $this->order->reference . '** a été livrée.')
-                     ->line('Nous espérons que vous êtes satisfait de votre achat !')
-                     ->action('Laisser un avis', route('products.review', $this->order->id));
+                    ->line('Nous espérons que vous êtes satisfait de votre achat !')
+                    ->action('Laisser un avis', route('products.review', $this->order->id));
                 break;
-                
+
             case OrderStatus::CANCELLED:
                 $mail->line('Votre commande **' . $this->order->reference . '** a été annulée.')
-                     ->line('**Raison :** ' . ($this->order->notes ?? 'Non spécifiée'))
-                     ->line('Un remboursement sera effectué si nécessaire.');
+                    ->line('**Raison :** ' . ($this->order->notes ?? 'Non spécifiée'))
+                    ->line('Un remboursement sera effectué si nécessaire.');
                 break;
         }
 
         return $mail->action('Voir ma commande', route('orders.show', $this->order->id))
-                    ->salutation('Cordialement,<br>L\'équipe ' . config('app.name'));
+            ->salutation('Cordialement,<br>L\'équipe ' . config('app.name'));
     }
 
     /**
@@ -118,8 +119,8 @@ class OrderStatusUpdatedNotification extends Notification
             'new_status' => $this->order->status->value,
             'recipient_type' => $this->recipientType,
             'title' => 'Statut mis à jour',
-            'message' => 'Commande ' . $this->order->reference . ' : ' . 
-                        $this->oldStatus->label() . ' → ' . $this->order->status->label(),
+            'message' => 'Commande ' . $this->order->reference . ' : ' .
+                $this->oldStatus->label() . ' → ' . $this->order->status->label(),
             'created_at' => now()->toDateTimeString(),
         ];
     }

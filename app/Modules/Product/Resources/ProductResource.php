@@ -59,6 +59,8 @@ class ProductResource extends JsonResource
             'stock' => $this->stock,
             'is_promotional' => $this->is_promotional,
             'promo_end_date' => $this->promo_end_date?->toISOString(),
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
 
         ];
     }

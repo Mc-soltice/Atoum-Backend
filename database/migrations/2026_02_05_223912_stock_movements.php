@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Order\Enums\StockMovementReason;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -20,12 +21,15 @@ return new class extends Migration
             $table->foreignUuid('order_id')->nullable()->constrained()->onDelete('set null');
             $table->enum('movement_type', ['in', 'out']);
             $table->integer('quantity');
-            $table->string('reason'); // 'order_creation', 'order_cancellation', 'manual_adjustment'
-            $table->text('notes')->nullable();
+            $table->enum('reason', array_map(
+                fn($case) => $case->value,
+                StockMovementReason::cases()
+            ));
+            $table->string('new_stock');
             $table->decimal('unit_price_at_time', 10, 2)->nullable();
             $table->json('metadata')->nullable();
             $table->timestamps();
-            
+
             // Index pour les analyses et rapports
             $table->index(['product_id', 'created_at']);
             $table->index(['order_id', 'movement_type']);

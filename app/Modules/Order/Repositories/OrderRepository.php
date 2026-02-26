@@ -3,6 +3,7 @@
 namespace App\Modules\Order\Repositories;
 
 use App\Modules\Order\Models\Order;
+use App\Modules\Order\Models\StockMovement;
 use App\Modules\Order\Enums\OrderStatus;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -37,14 +38,14 @@ class OrderRepository
     public function find(string $id, array $with = []): ?Order
     {
         $query = Order::query();
-        
+
         if (!empty($with)) {
             $query->with($with);
         } else {
             // Relations par défaut
             $query->with(['items.product', 'deliveryOption', 'user']);
         }
-        
+
         return $query->find($id);
     }
 
@@ -93,14 +94,14 @@ class OrderRepository
     public function updateStatus(Order $order, OrderStatus $status, ?string $notes = null): Order
     {
         $data = ['status' => $status];
-        
+
         if ($status === OrderStatus::CANCELLED) {
             $data['cancelled_at'] = now();
         }
-    
-        
+
+
         $order->update($data);
-        
+
         return $order->fresh();
     }
 
@@ -110,7 +111,7 @@ class OrderRepository
     public function cancel(Order $order, string $reason, ?string $notes = null): Order
     {
         return $this->updateStatus(
-            $order, 
+            $order,
             OrderStatus::CANCELLED,
             $notes ?: "Annulé: $reason"
         );
@@ -140,6 +141,14 @@ class OrderRepository
         ];
     }
 
+    /** mouvement du stock */
+    public function getStock(): Collection
+    {
+        return StockMovement::with('product')
+            ->latest()
+            ->get();
+    }
+
     /**
      * Application des filtres sur la requête
      */
@@ -148,23 +157,23 @@ class OrderRepository
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
-        
+
         if (!empty($filters['date_from'])) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
         }
-        
+
         if (!empty($filters['date_to'])) {
             $query->whereDate('created_at', '<=', $filters['date_to']);
         }
-        
+
         if (!empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('reference', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($q) use ($search) {
-                      $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('user', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
             });
         }
     }

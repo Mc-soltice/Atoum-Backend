@@ -36,6 +36,7 @@ class StockMovement extends Model
         'quantity',
         'reason',
         'notes',
+        'new_stock',
         'unit_price_at_time',
         'metadata',
     ];

@@ -1,177 +1,145 @@
-<?php
+<?PHP
 
 namespace App\Modules\Order\Services;
 
-use Illuminate\Bus\Queueable;
 use App\Modules\Auth\Models\User;
 use App\Modules\Order\Models\Order;
 use Illuminate\Support\Facades\Log;
-use App\Modules\Order\Enums\OrderStatus;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Notification;
+use App\Modules\Order\Enums\OrderStatus;
 use App\Modules\Order\Notifications\OrderNotification;
 use App\Modules\Order\Notifications\OrderCancelledNotification;
 use App\Modules\Order\Notifications\OrderStatusUpdatedNotification;
 
-/**
- * Service de gestion des notifications
- * - Support user connecté + guest checkout
- * - Fallback email via shipping_address
- * - Notifications admin
- * - Aucun crash si user null
- */
-class NotificationService extends Notification implements ShouldQueue
+class NotificationService
 {
-    use Queueable;
-
-    /**
-     * Notifie la création d'une commande
-     */
     public function notifyOrderCreated(Order $order): void
     {
         try {
-
-            // ✅ CLIENT CONNECTÉ
+            // CLIENT
             if ($order->user) {
-                $order->user->notify(
-                    new OrderNotification($order, 'customer')
-                );
-                $customerNotified = 'user';
-            }
-
-            // ✅ GUEST CHECKOUT
-            else {
+                $order->user->notify(new OrderNotification($order, 'customer'));
+                $channel = 'user';
+            } else {
                 $email = $order->shipping_address['email'] ?? null;
-
                 if ($email) {
                     Notification::route('mail', $email)
                         ->notify(new OrderNotification($order, 'customer'));
-                    $customerNotified = 'guest_mail';
+                    $channel = 'guest_mail';
                 } else {
-                    $customerNotified = 'none';
+                    $channel = 'none';
                 }
             }
 
-            // ✅ ADMINS
+            // ADMINS
             $admins = User::where('role', 'admin')->get();
             Notification::send($admins, new OrderNotification($order, 'admin'));
 
-            Log::info('Notifications création envoyées', [
+            Log::info('Order created notification sent', [
                 'order_id' => $order->id,
-                'customer_channel' => $customerNotified,
-                'admins_notified' => $admins->count()
+                'channel' => $channel,
+                'admins' => $admins->count(),
             ]);
-
         } catch (\Throwable $e) {
-            Log::error('Erreur notifyOrderCreated', [
+            Log::error('notifyOrderCreated failed', [
                 'order_id' => $order->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
 
-    /**
-     * Notifie la mise à jour du statut
-     */
-    public function notifyOrderStatusUpdated(Order $order, OrderStatus $oldStatus): void
-    {
+    public function notifyOrderStatusUpdated(
+        Order $order,
+        OrderStatus $oldStatus,
+        OrderStatus $newStatus
+    ): void {
         try {
-
-            // ✅ CLIENT
+            // CLIENT
             if ($order->user) {
                 $order->user->notify(
-                    new OrderStatusUpdatedNotification($order, $oldStatus, 'customer')
+                    new OrderStatusUpdatedNotification(
+                        $order,
+                        $oldStatus,
+                        $newStatus,
+                        'customer'
+                    )
                 );
             } else {
                 $email = $order->shipping_address['email'] ?? null;
-
                 if ($email) {
-                    Notification::route('mail', $email)
-                        ->notify(
-                            new OrderStatusUpdatedNotification($order, $oldStatus, 'customer')
-                        );
+                    Notification::route('mail', $email)->notify(
+                        new OrderStatusUpdatedNotification(
+                            $order,
+                            $oldStatus,
+                            $newStatus,
+                            'customer'
+                        )
+                    );
                 }
             }
 
-            // ✅ ADMIN si statut critique
-            if (in_array($order->status, [
+            // ADMINS (statuts critiques)
+            if (in_array($newStatus, [
                 OrderStatus::CANCELLED,
-                OrderStatus::SHIPPED
-            ])) {
+                OrderStatus::SHIPPED,
+            ], true)) {
                 $admins = User::where('role', 'admin')->get();
-
                 Notification::send(
                     $admins,
-                    new OrderStatusUpdatedNotification($order, $oldStatus, 'admin')
+                    new OrderStatusUpdatedNotification(
+                        $order,
+                        $oldStatus,
+                        $newStatus,
+                        'admin'
+                    )
                 );
             }
 
-            Log::info('Notifications statut envoyées', [
+            Log::info('Order status updated notification sent', [
                 'order_id' => $order->id,
-                'old_status' => $oldStatus->value,
-                'new_status' => $order->status->value
+                'from' => $oldStatus->value,
+                'to' => $newStatus->value,
             ]);
-
         } catch (\Throwable $e) {
-            Log::error('Erreur notifyOrderStatusUpdated', [
+            Log::error('notifyOrderStatusUpdated failed', [
                 'order_id' => $order->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
 
-    /**
-     * Notifie l'annulation
-     */
     public function notifyOrderCancelled(Order $order, string $reason): void
     {
         try {
-
-            // ✅ CLIENT
+            // CLIENT
             if ($order->user) {
                 $order->user->notify(
                     new OrderCancelledNotification($order, $reason, 'customer')
                 );
             } else {
                 $email = $order->shipping_address['email'] ?? null;
-
                 if ($email) {
                     Notification::route('mail', $email)
-                        ->notify(
-                            new OrderCancelledNotification($order, $reason, 'customer')
-                        );
+                        ->notify(new OrderCancelledNotification($order, $reason, 'customer'));
                 }
             }
 
-            // ✅ ADMIN
+            // ADMINS
             $admins = User::where('role', 'admin')->get();
             Notification::send(
                 $admins,
                 new OrderCancelledNotification($order, $reason, 'admin')
             );
 
-            Log::info('Notifications annulation envoyées', [
+            Log::info('Order cancelled notification sent', [
                 'order_id' => $order->id,
                 'reason' => $reason,
-                'admins_notified' => $admins->count()
             ]);
-
         } catch (\Throwable $e) {
-            Log::error('Erreur notifyOrderCancelled', [
+            Log::error('notifyOrderCancelled failed', [
                 'order_id' => $order->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
-    }
-
-    /**
-     * Notification personnalisée (extension future)
-     */
-    public function sendCustomNotification(Order $order, string $type, array $data = []): void
-    {
-        Log::info('Custom notification stub', [
-            'order_id' => $order->id,
-            'type' => $type
-        ]);
     }
 }

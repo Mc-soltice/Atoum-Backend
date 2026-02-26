@@ -93,7 +93,7 @@ class OrderCancelledNotification extends Notification
             'title' => 'Commande annulée',
             'message' => 'Commande ' . $this->order->reference . ' annulée : ' . $this->reason,
             'amount' => $this->order->total_amount,
-            'created_at' => now()->toDateTimeString(),
+            'cancelled_at' => $this->order->cancelled_at,
         ];
     }
 }
