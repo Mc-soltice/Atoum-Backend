@@ -13,6 +13,9 @@ use App\Modules\Order\Listeners\LogOrderActivity;
 class EventServiceProvider extends ServiceProvider
 {
   protected $listen = [
+    \App\Modules\Product\Events\PromotionExpiredBatch::class => [
+      \App\Modules\Product\Listeners\NotifyAdminPromotionExpired::class,
+    ],
     \App\Modules\Auth\Events\UserLocked::class => [
       \App\Modules\Auth\Listeners\SendUserLockedNotifications::class,
     ],
@@ -25,17 +28,17 @@ class EventServiceProvider extends ServiceProvider
     \App\Modules\Product\Events\ProductOutOfStock::class => [
       \App\Modules\Product\Listeners\SendStockAlertNotification::class,
     ],
-        OrderCreated::class => [
-            DecreaseProductStock::class,
-            LogOrderActivity::class,
-        ],
-        OrderStatusUpdated::class => [
-            LogOrderActivity::class,
-        ],
-        OrderCancelled::class => [
-            RestoreProductStock::class,
-            LogOrderActivity::class,
-        ],
+    OrderCreated::class => [
+      DecreaseProductStock::class,
+      LogOrderActivity::class,
+    ],
+    OrderStatusUpdated::class => [
+      LogOrderActivity::class,
+    ],
+    OrderCancelled::class => [
+      RestoreProductStock::class,
+      LogOrderActivity::class,
+    ],
   ];
 
   public function boot(): void

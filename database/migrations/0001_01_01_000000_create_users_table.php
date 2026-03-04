@@ -1,9 +1,10 @@
 <?php
 
+use App\Modules\Auth\Enums\RolesEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Enums\Role;
+
 
 return new class extends Migration {
     /**
@@ -19,7 +20,7 @@ return new class extends Migration {
             $table->string('email')->unique();
             $table->string('password');
             $table->boolean('is_locked')->default(false);
-            $table->enum('role', array_column(Role::cases(), 'value'))->default(Role::CLIENT->value);
+            $table->enum('role', array_column(RolesEnum::cases(), 'value'))->default(RolesEnum::CLIENT->value);
             $table->rememberToken();
             $table->timestamps();
         });

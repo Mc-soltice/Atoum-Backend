@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use App\Modules\Auth\Events\UserUnlocked;
 use App\Modules\Auth\Repositories\AuthRepository;
-use App\Enums\Role;
 use App\Enums\Ability;
+use App\Modules\Auth\Enums\RolesEnum;
 
 class AuthService
 {
@@ -20,26 +20,26 @@ class AuthService
         $this->repository = $repository;
     }
 
-    private function getAbilitiesForRole(Role|string $role): array
+    private function getAbilitiesForRole(RolesEnum|string $role): array
     {
         // Si c'est un enum, on prend sa valeur string
-        if ($role instanceof Role) {
+        if ($role instanceof RolesEnum) {
             $role = $role->value;
         }
 
         $all = array_map(fn(Ability $a) => $a->value, Ability::cases());
 
         return match ($role) {
-            Role::ADMIN->value => $all,
-            Role::GESTIONNAIRE->value => array_filter($all, fn($a) => !str_ends_with($a, '.delete')),
-            Role::CLIENT->value => array_filter($all, fn($a) => str_ends_with($a, '.view') || str_ends_with($a, '.create')),
+            RolesEnum::ADMIN->value => $all,
+            RolesEnum::GESTIONNAIRE->value => array_filter($all, fn($a) => !str_ends_with($a, '.delete')),
+            RolesEnum::CLIENT->value => array_filter($all, fn($a) => str_ends_with($a, '.view') || str_ends_with($a, '.create')),
             default => [],
         };
     }
     public function register(array $data): User
     {
         $data['password'] = Hash::make($data['password']);
-        $data['role'] = $data['role'] ?? Role::CLIENT->value;
+        $data['role'] = $data['role'] ?? RolesEnum::CLIENT->value;
 
         $user = $this->repository->create($data);
 

@@ -30,4 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         // Personnalise la gestion des exceptions ici si besoin
     })
+    ->withCommands([
+        \App\Console\Commands\ExpireProductPromotions::class,
+    ])
     ->create();

@@ -5,7 +5,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000','https://8tp2hswj-3000.uks1.devtunnels.ms'],
+    'allowed_origins' => ['http://localhost:3000', 'https://atoum-frontend.vercel.app'],
 
     'allowed_origins_patterns' => [],
 

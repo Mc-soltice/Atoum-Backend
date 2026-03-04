@@ -8,7 +8,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use App\Traits\LogsModelActivity;
-use App\Enums\Role;
+use App\Modules\Auth\Enums\RolesEnum;
 
 /**
  * @property int $id
@@ -51,7 +51,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'is_locked' => 'boolean',
-        'role' => Role::class,
+        'role' => RolesEnum::class,
     ];
 
     /**
@@ -84,9 +84,9 @@ class User extends Authenticatable
     {
         return $this->hasOne(LoginAttempt::class);
     }
-    public function hasRole(Role|string $role): bool
+    public function hasRole(RolesEnum|string $role): bool
     {
-        return $this->role === ($role instanceof Role ? $role->value : $role);
+        return $this->role === ($role instanceof RolesEnum ? $role->value : $role);
     }
 
     public function tokenCanAbility(string $ability): bool

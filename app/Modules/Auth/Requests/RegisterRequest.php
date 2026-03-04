@@ -3,7 +3,7 @@
 namespace App\Modules\Auth\Requests;
 
 
-use App\Enums\RolesEnum;
+use App\Modules\Auth\Enums\RolesEnum;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Foundation\Http\FormRequest;
 

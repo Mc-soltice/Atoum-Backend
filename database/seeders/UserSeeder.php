@@ -5,14 +5,14 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Modules\Auth\Models\User;
 use Illuminate\Support\Facades\Hash;
-use App\Enums\Role;
+use App\Modules\Auth\Enums\RolesEnum;
 
 class UserSeeder extends Seeder
 {
 
   public function run()
   {
-    foreach (Role::cases() as $role) {
+    foreach (RolesEnum::cases() as $role) {
 
       $user = User::firstOrCreate(
         ['email' => $role->value . '@example.com'],
