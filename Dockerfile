@@ -19,9 +19,6 @@ COPY . .
 
 RUN composer install --optimize-autoloader --no-dev
 
-RUN php artisan config:clear
-RUN php artisan route:clear
-RUN php artisan cache:clear
 
 EXPOSE 10000
 
