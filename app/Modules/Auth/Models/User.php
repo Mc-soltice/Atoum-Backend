@@ -2,13 +2,15 @@
 
 namespace App\Modules\Auth\Models;
 
+use App\Modules\Auth\Enums\RolesEnum;
+use App\Modules\Order\Models\Order;
+use App\Traits\LogsModelActivity;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\LogOptions;
-use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use App\Traits\LogsModelActivity;
-use App\Modules\Auth\Enums\RolesEnum;
 
 /**
  * @property int $id
@@ -34,6 +36,7 @@ class User extends Authenticatable
      */
 
     protected $fillable = [
+
         'first_name',
         'last_name',
         'phone',
@@ -41,6 +44,7 @@ class User extends Authenticatable
         'role',
         'password',
         'is_locked',
+        'google_id',
     ];
 
     protected $hidden = [
@@ -92,5 +96,10 @@ class User extends Authenticatable
     public function tokenCanAbility(string $ability): bool
     {
         return $this->currentAccessToken()?->can($ability) ?? false;
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Modules\Order\Repositories;
 
 use App\Modules\Order\Models\Order;
+use App\Modules\Auth\Models\User;
 use App\Modules\Order\Models\StockMovement;
 use App\Modules\Order\Enums\OrderStatus;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -76,13 +77,15 @@ class OrderRepository
     /**
      * Liste les commandes d'un utilisateur
      */
-    public function forUser(int $userId, array $filters = []): LengthAwarePaginator
+    public function forUser(User $user, array $filters = []): LengthAwarePaginator
     {
-        $query = Order::with(['items.product', 'deliveryOption'])
-            ->where('user_id', $userId)
+        $query = $user->orders()
+            ->with([
+                'items.product',
+                'deliveryOption'
+            ])
             ->latest();
 
-        // Application des filtres
         $this->applyFilters($query, $filters);
 
         return $query->paginate(10);
@@ -133,7 +136,7 @@ class OrderRepository
         return [
             'total' => Order::count(),
             'pending' => Order::where('status', OrderStatus::PENDING)->count(),
-            'paid' => Order::where('status', OrderStatus::PAID)->count(),
+            'paid' => Order::where('status', OrderStatus::CONFIRMED)->count(),
             'delivered' => Order::where('status', OrderStatus::DELIVERED)->count(),
             'cancelled' => Order::where('status', OrderStatus::CANCELLED)->count(),
             'total_revenue' => Order::where('status', '!=', OrderStatus::CANCELLED)
@@ -148,6 +151,7 @@ class OrderRepository
             ->latest()
             ->get();
     }
+
 
     /**
      * Application des filtres sur la requête

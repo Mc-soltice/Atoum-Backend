@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Modules\Auth\Models\User;
 use App\Modules\Auth\Events\UserLocked;
+use App\Modules\Order\Controllers\SignedOrderController;
 
 Route::get('/test-enum', function () {
     $all = array_map(fn($a) => $a->value, App\Enums\Ability::cases());
@@ -13,3 +14,7 @@ Route::get('/test-lock', function () {
     event(new UserLocked($user));
     return "Event déclenché pour " . $user->email;
 });
+
+Route::get('/commandes/{id}', [SignedOrderController::class, 'show'])
+    ->middleware('signed')
+    ->name('orders.show.signed');

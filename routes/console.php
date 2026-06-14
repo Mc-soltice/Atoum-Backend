@@ -12,3 +12,8 @@ Schedule::command('products:expire-promotions')
     ->dailyAt('00:00')
     ->onOneServer()
     ->withoutOverlapping();
+
+Schedule::command('orders:expire-pending')
+    ->everyFiveMinutes()
+    ->onOneServer()
+    ->withoutOverlapping();

@@ -73,6 +73,53 @@ class AuthService
         ];
     }
 
+    public function handleSocialLogin(array $data)
+    {
+        // 1. Vérifier si user existe
+        $user = $this->repository->findByGoogleId($data);
+
+        // 2. Si NON → passer par register (logique existante)
+        if (!$user) {
+                    // Décomposer le name Google en first_name / last_name
+        $nameParts = explode(' ', $data['name'] ?? '', 2);
+        $firstName = $nameParts[0] ?? 'Utilisateur';
+        $lastName  = $nameParts[1] ?? '';
+
+
+            $user = $this->register([
+            'first_name' => $firstName,
+            'last_name'  => $lastName,
+            'email'      => $data['email'],
+                'password' => uniqid(), // password dummy
+                'role' => RolesEnum::CLIENT->value,
+            ]);
+
+            //  mettre à jour google_id après création
+            $user = $this->repository->update($user, [
+                'google_id' => $data['google_id']
+            ]);
+        }
+
+        // 3. Si OUI → update google_id si absent
+        if (!$user->google_id) {
+            $user = $this->repository->update($user, [
+                'google_id' => $data['google_id']
+            ]);
+        }
+
+        // 4. Générer token avec logique EXISTANTE (abilities incluses)
+        $abilities = $this->getAbilitiesForRole($user->role);
+
+        $token = $user
+            ->createToken('auth_token', $abilities)
+            ->plainTextToken;
+
+        return [
+            'user' => $user,
+            'token' => $token
+        ];
+    }
+
     public function logout(User $user): void
     {
         $user->tokens()->delete();

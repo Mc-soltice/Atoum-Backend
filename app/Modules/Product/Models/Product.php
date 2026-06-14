@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
  * @property float $price
  * @property int $stock
  * @property bool $is_promotional
+ * @property \App\Modules\Product\Models\Category|null $category
  */
 class Product extends Model
 {
@@ -56,10 +57,11 @@ class Product extends Model
         return $this->hasMany(ProductImage::class);
     }
 
-    public function category()
+    public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
+
     public function getIdShortAttribute(): string
 {
     return substr($this->id, 0, 5);

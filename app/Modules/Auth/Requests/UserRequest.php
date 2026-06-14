@@ -24,7 +24,7 @@ class UserRequest extends FormRequest
                 return [
                     'first_name' => 'required|string|max:100',
                     'last_name'  => 'required|string|max:100',
-                    'phone'      => 'required|string|max:15|unique:users,phone',
+                    'phone'      => 'nullable|string|max:15|unique:users,phone',
                     'email'      => 'required|email|unique:users,email',
                     'role'       => ['sometimes', 'string', new Enum(RolesEnum::class)],
                     'password'   => 'required|confirmed|min:6',

@@ -4,18 +4,18 @@ namespace App\Modules\Product\Notifications;
 
 use App\Modules\Product\Models\Product;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
 
-class ProductStockAlertNotification extends Notification
+class ProductStockAlertNotification extends Notification implements ShouldQueue
 {
   use Queueable;
 
   public function __construct(
     private Product $product,
     private string $alertType // 'low' ou 'out'
-  ) {
-  }
+  ) {}
 
   public function via($notifiable): array
   {
@@ -38,7 +38,7 @@ class ProductStockAlertNotification extends Notification
       ->line('Détails du produit:')
       ->line('- ID: ' . $this->product->id)
       ->line('- Nom: ' . $this->product->name)
-      ->line('- Catégorie: ' . $this->product->category->name)
+      ->line('- Catégorie: ' . ($this->product->category?->name ?? 'N/A'))
       ->line('- Stock actuel: ' . $this->product->stock)
       ->action('Voir le produit', url('/admin/products/' . $this->product->id));
   }

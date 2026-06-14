@@ -5,13 +5,15 @@ namespace App\Modules\Order\Notifications;
 use App\Modules\Order\Models\Order;
 use App\Modules\Order\Enums\OrderStatus;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Support\Facades\URL;
 
 /**
  * Notification pour la mise à jour du statut
  */
-class OrderStatusUpdatedNotification extends Notification
+class OrderStatusUpdatedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -50,6 +52,8 @@ class OrderStatusUpdatedNotification extends Notification
      */
     private function customerMail(): MailMessage
     {
+        $pickupMethod = $this->order->deliveryOption?->name ?? 'Non spécifié';
+
         $subject = match ($this->order->status) {
             // OrderStatus::PAID => 'Paiement confirmé - Commande ' . $this->order->reference,
             OrderStatus::SHIPPED => 'Votre commande a été expédiée',
@@ -58,15 +62,22 @@ class OrderStatusUpdatedNotification extends Notification
             default => 'Mise à jour de votre commande',
         };
 
+        $url = URL::temporarySignedRoute(
+            'orders.show.signed',
+            now()->addHours(24),
+            ['id' => $this->order->id]
+        );
+
         $mail = (new MailMessage)
             ->subject($subject)
             ->greeting('Bonjour ' . $this->order->shipping_address['first_name'] . ',');
 
         switch ($this->order->status) {
-            // case OrderStatus::PAID:
-            //     $mail->line('Votre paiement pour la commande **' . $this->order->reference . '** a été confirmé.')
-            //         ->line('Nous préparons maintenant votre commande.');
-            //     break;
+            case OrderStatus::CONFIRMED:
+                $mail->line('Votre paiement pour la commande **' . $this->order->reference . '** a été confirmé.')
+                    ->line('Mode de paiement : **' . (ucfirst($this->order->payment_method ?? 'Non spécifié')) . '**')
+                    ->line('Nous préparons maintenant votre commande.');
+                break;
 
             case OrderStatus::SHIPPED:
                 $mail->line('Votre commande **' . $this->order->reference . '** a été expédiée.')
@@ -87,7 +98,10 @@ class OrderStatusUpdatedNotification extends Notification
                 break;
         }
 
-        return $mail->action('Voir ma commande', route('orders.show', $this->order->id))
+        return $mail->action('Voir ma commande', $url)
+            ->line('**Statut :** ' . $this->order->status->label())
+            ->line('**Mode de retrait :** ' . $pickupMethod)
+            ->line('Ce lien expire dans 24 heures.')
             ->salutation('Cordialement,<br>L\'équipe ' . config('app.name'));
     }
 
@@ -102,8 +116,9 @@ class OrderStatusUpdatedNotification extends Notification
             ->line('**Référence :** ' . $this->order->reference)
             ->line('**Ancien statut :** ' . $this->oldStatus->label())
             ->line('**Nouveau statut :** ' . $this->order->status->label())
+            ->line('**Mode de paiement :** ' . ($this->order->payment_method ?? 'Non spécifié'))
             ->line('**Client :** ' . $this->order->shipping_address['first_name'] . ' ' . $this->order->shipping_address['last_name'])
-            ->action('Voir la commande', route('admin.orders.show', $this->order->id));
+            ->action('Voir la commande', route('orders.show', $this->order->id));
     }
 
     /**
@@ -117,6 +132,7 @@ class OrderStatusUpdatedNotification extends Notification
             'type' => 'order_status_updated',
             'old_status' => $this->oldStatus->value,
             'new_status' => $this->order->status->value,
+            'payment_method' => $this->order->payment_method ?? null,
             'recipient_type' => $this->recipientType,
             'title' => 'Statut mis à jour',
             'message' => 'Commande ' . $this->order->reference . ' : ' .

@@ -13,21 +13,23 @@ use App\Modules\Order\Notifications\OrderStatusUpdatedNotification;
 
 class NotificationService
 {
-    public function notifyOrderCreated(Order $order): void
+    public function notifyOrderCreated(Order $order, bool $sendCustomer = false): void
     {
         try {
+            $channel = 'none';
+
             // CLIENT
-            if ($order->user) {
-                $order->user->notify(new OrderNotification($order, 'customer'));
-                $channel = 'user';
-            } else {
-                $email = $order->shipping_address['email'] ?? null;
-                if ($email) {
-                    Notification::route('mail', $email)
-                        ->notify(new OrderNotification($order, 'customer'));
-                    $channel = 'guest_mail';
+            if ($sendCustomer) {
+                if ($order->user) {
+                    $order->user->notify(new OrderNotification($order, 'customer'));
+                    $channel = 'user';
                 } else {
-                    $channel = 'none';
+                    $email = $order->shipping_address['email'] ?? null;
+                    if ($email) {
+                        Notification::route('mail', $email)
+                            ->notify(new OrderNotification($order, 'customer'));
+                        $channel = 'guest_mail';
+                    }
                 }
             }
 

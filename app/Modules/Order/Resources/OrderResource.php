@@ -79,18 +79,18 @@ class OrderResource extends JsonResource
     public function toArray($request): array
     {
         /** @var Order $this */
-        
+
         // Calculer le total des items
         $itemsTotal = (float) $this->items->sum('total_price');
         $deliveryCost = (float) $this->deliveryOption->price;
         $totalAmount = $itemsTotal + $deliveryCost;
-        
+
         // Vérifier si la commande peut être annulée
         $canBeCancelled = $this->status === 'pending' || $this->status === 'confirmed';
 
         // Récupérer la valeur du statut (string) depuis l'Enum
         $statusValue = $this->status->value ?? (string) $this->status;
-        
+
         // Si c'est toujours un Enum, le convertir en string
         if ($this->status instanceof \App\Modules\Order\Enums\OrderStatus) {
             $statusValue = $this->status->value;
@@ -101,23 +101,23 @@ class OrderResource extends JsonResource
             'id' => $this->id,
             'reference' => $this->reference,
             'user_id' => $this->user_id,
-            
+
             // Informations générales
             'status' => [
                 'value' => $statusValue,
                 'label' => $this->getStatusLabel($statusValue),
             ],
             'payment_method' => $this->payment_method,
-            
+
             // Montants
             'items_total' => $itemsTotal,
             'delivery_cost' => $deliveryCost,
             'total_amount' => $totalAmount,
             'currency' => $this->currency,
-            
+
             // Adresse de livraison (telle quelle)
             'shipping_address' => $this->shipping_address,
-            
+
             // Livraison formatée
             'delivery' => [
                 'id' => $this->delivery_option_id,
@@ -126,25 +126,25 @@ class OrderResource extends JsonResource
                 'delay_days' => $this->deliveryOption->delay_days,
                 'estimated_delivery' => $this->created_at->addDays($this->deliveryOption->delay_days)->toDateString(),
             ],
-            
+
             // Items
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
-            
+
             // Dates
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
             'cancelled_at' => $this->cancelled_at?->toIso8601String(),
-            
+
             // Métadonnées
             'notes' => $this->notes,
             'can_be_cancelled' => $canBeCancelled,
-            
+
             // Liens
             '_links' => [
                 'self' => route('orders.show', $this->id),
                 'status' => route('orders.status.update', $this->id),
-                'cancel' => $canBeCancelled 
-                    ? route('orders.cancel', $this->id) 
+                'cancel' => $canBeCancelled
+                    ? route('orders.cancel', $this->id)
                     : null,
             ],
         ];
@@ -160,7 +160,7 @@ class OrderResource extends JsonResource
         if ($status instanceof \App\Modules\Order\Enums\OrderStatus) {
             $status = $status->value;
         }
-        
+
         $labels = [
             'pending' => 'En attente',
             'confirmed' => 'Confirmée',
@@ -169,7 +169,7 @@ class OrderResource extends JsonResource
             'delivered' => 'Livrée',
             'cancelled' => 'Annulée',
         ];
-        
+
         return $labels[$status] ?? (string) $status;
     }
 

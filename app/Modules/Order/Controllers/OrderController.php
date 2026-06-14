@@ -156,9 +156,11 @@ class OrderController extends Controller
      */
     public function myOrders(Request $request): JsonResponse
     {
+        $user = $request->user();
+
         $filters = $request->only(['status', 'date_from', 'date_to']);
 
-        $orders = $this->repository->forUser(auth()->id(), $filters);
+        $orders = $this->repository->forUser($user, $filters);
 
         return response()->json([
             'data' => OrderResource::collection($orders),
@@ -264,7 +266,6 @@ class OrderController extends Controller
             $order = $this->service->updateStatus(
                 $order,
                 $status,
-                $validated['notes'] ?? null
             );
             Log::info("Statut de la commande ID: {$order->id} mis à jour à {$status->value}");
             return response()->json(
@@ -326,7 +327,6 @@ class OrderController extends Controller
             $order = $this->service->cancel(
                 $order,
                 $validated['reason'],
-                $validated['notes'] ?? null
             );
 
             return response()->json(

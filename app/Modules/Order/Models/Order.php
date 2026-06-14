@@ -19,12 +19,15 @@ use App\Modules\Delivery\Models\DeliveryOption;
  * @property string $delivery_option_id
  * @property OrderStatus $status
  * @property string $payment_method
+ * @property string $payment_status
+ * @property string|null $stripe_payment_intent_id
  * @property boolean $is_paid
  * @property float $total_amount
  * @property string $currency
  * @property array $shipping_address
  * @property string|null $notes
  * @property \Carbon\Carbon|null $cancelled_at
+ * @property \Carbon\Carbon|null $paid_at
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  * 
@@ -61,7 +64,7 @@ use App\Modules\Delivery\Models\DeliveryOption;
 class Order extends Model
 {
     use HasUuids;
-    
+
 
     /**
      * Champs assignables en masse
@@ -72,11 +75,14 @@ class Order extends Model
         'delivery_option_id',
         'status',
         'payment_method',
+        'payment_status',
+        'stripe_payment_intent_id',
         'is_paid',
         'total_amount',
         'currency',
         'shipping_address',
         'cancelled_at',
+        'paid_at',
     ];
 
     /**
@@ -88,6 +94,7 @@ class Order extends Model
         'total_amount' => 'decimal:2',
         'is_paid' => 'boolean',
         'cancelled_at' => 'datetime',
+        'paid_at' => 'datetime',
         'is_active' => 'boolean',
     ];
 
@@ -122,7 +129,7 @@ class Order extends Model
         $year = date('Y');
         $lastOrder = static::whereYear('created_at', $year)->latest()->first();
         $nextNumber = $lastOrder ? (int) substr($lastOrder->reference, -5) + 1 : 1;
-        
+
         return sprintf('ORD-%s-%05d', $year, $nextNumber);
     }
 
@@ -173,7 +180,7 @@ class Order extends Model
     {
         $itemsTotal = $this->items->sum('total_price');
         $deliveryPrice = $this->deliveryOption->price ?? 0;
-        
+
         return $itemsTotal + $deliveryPrice;
     }
 }

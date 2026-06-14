@@ -5,6 +5,7 @@ use App\Modules\Auth\Controllers\AuthController;
 use App\Modules\Product\Controllers\CategoryController;
 use App\Modules\Product\Controllers\ProductController;
 use App\Modules\Order\Controllers\OrderController;
+use App\Modules\Order\Controllers\PaymentController;
 use App\Modules\Delivery\Controllers\DeliveryOptionController;
 use Illuminate\Http\Request;
 
@@ -34,7 +35,10 @@ Route::prefix('categories')->group(function () {
 Route::get('/delivery-options/available', [DeliveryOptionController::class, 'available']);
 
 // Création commande (client invité possible)
-Route::post('/orders', [OrderController::class, 'store']);
+Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+
+// Webhook Stripe (appelé directement par Stripe)
+Route::post('/payments/webhook', [PaymentController::class, 'handleWebhook']);
 
 
 /*
@@ -53,9 +57,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
   Route::post('/users/logout', [AuthController::class, 'logout']);
 
   // Commandes de l'utilisateur connecté
-  Route::get('/users/orders', [OrderController::class, 'myOrders']);
+  Route::get('/me/orders', [OrderController::class, 'myOrders'])->name('orders.index');
 });
 
+Route::post('/social-login', [AuthController::class, 'socialLogin']);
 /*
 |--------------------------------------------------------------------------
 | ROUTES ADMIN / GESTION
@@ -68,7 +73,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
   Route::prefix('users')->group(function () {
     Route::get('/', [AuthController::class, 'index'])->middleware('ability:user.view');
     Route::get('/{user}', [AuthController::class, 'show'])->middleware('ability:user.view');
-    Route::patch('/{user}', [AuthController::class, 'update'])->middleware('ability:user.update');
+    Route::patch('/{user}', [AuthController::class, 'update'])->middleware('ability:user.view');
     Route::delete('/{user}', [AuthController::class, 'destroy'])->middleware('ability:user.delete');
     Route::patch('/{user}/toggle-lock', [AuthController::class, 'toggleLock'])->middleware('ability:user.toggle-lock');
     Route::get('/{user}/activity', [AuthController::class, 'activity'])->middleware('ability:user.view-activity');
@@ -98,12 +103,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
   // ------------------ Commandes ------------------
   Route::prefix('orders')->group(function () {
+    Route::get('/my-orders', [OrderController::class, 'myOrders']);
     Route::get('/', [OrderController::class, 'index'])->middleware('ability:order.view');
     Route::get('/{id}', [OrderController::class, 'show'])->middleware('ability:order.view')->name('orders.show');
     Route::delete('/{id}', [OrderController::class, 'destroy'])->middleware('ability:order.delete');
     Route::patch('/{id}/status', [OrderController::class, 'updateStatus'])->middleware('ability:order.update')->name('orders.status.update');
-    Route::post('/{id}/cancel', [OrderController::class, 'cancel'])->middleware('ability:order.update');
+    Route::post('/{id}/cancel', [OrderController::class, 'cancel'])->middleware('ability:order.update')->name('orders.cancel');
     Route::get('/reports/stock-movements', [OrderController::class, 'stock_movements'])->middleware('ability:order.delete');
+  });
+
+  // ------------------ Paiements Stripe ------------------
+  Route::prefix('payments')->group(function () {
+    Route::post('/create-intent', [PaymentController::class, 'createIntent']);
+    Route::post('/verify', [PaymentController::class, 'verify']);
+    Route::get('/{payment_intent_id}/status', [PaymentController::class, 'getStatus']);
   });
 
   // ------------------ Options livraison ------------------

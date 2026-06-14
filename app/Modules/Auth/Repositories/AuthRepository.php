@@ -15,9 +15,14 @@ class AuthRepository
   {
     return User::where('email', $email)->first();
   }
+  public function findByGoogleId($data): ?User
+  {
+    return User::where('google_id', $data['google_id'])->orWhere('email', $data['email'])->first();
+  }
 
   public function update(User $user, array $data): User
   {
+
     $user->update($data);
     return $user;
   }

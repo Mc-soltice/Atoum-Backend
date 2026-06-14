@@ -84,6 +84,19 @@ class AuthController extends Controller
             'token' => $credentials['token'],
         ]);
     }
+
+    public function socialLogin(Request $request)
+    {
+        $data = $request->validate([
+            'email' => 'required|email',
+            'name' => 'required',
+            'google_id' => 'required'
+        ]);
+
+        $result = $this->service->handleSocialLogin($data);
+
+        return response()->json($result);
+    }
     /**
      * @OA\Post(
      *     path="/api/users/logout",

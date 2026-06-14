@@ -78,8 +78,9 @@ class OrderService
                     fn() =>
                     event(new OrderCreated($order))
                 );
-                // Envoie les notifications
-                $this->notificationService->notifyOrderCreated($order);
+                // Envoie uniquement la notification admin à la création ;
+                // le client sera notifié après validation du paiement.
+                $this->notificationService->notifyOrderCreated($order, false);
 
                 Log::info('Commande créée avec succès', [
                     'order_id' => $order->id,
