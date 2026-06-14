@@ -1,24 +1,23 @@
-FROM php:8.2-cli
+FROM php:8.2-fpm
 
-# Installer dépendances système
 RUN apt-get update && apt-get install -y \
-    unzip \
     git \
     curl \
-    libpq-dev \
-    libzip-dev \
     zip \
-    && docker-php-ext-install pdo pdo_mysql pdo_pgsql zip
+    unzip \
+    libpq-dev \
+    libonig-dev \
+    libzip-dev
 
-# Installer Composer
+RUN docker-php-ext-install pdo pdo_pgsql mbstring zip
+
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-WORKDIR /app
+WORKDIR /var/www
 
 COPY . .
 
-RUN composer install --optimize-autoloader --no-dev
-
+RUN composer install --no-dev --optimize-autoloader
 
 EXPOSE 10000
 
